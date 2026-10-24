@@ -43,27 +43,28 @@
             font-family: 'Plus Jakarta Sans', 'Noto Sans TC', sans-serif;
             background-color: #0f172a;
             color: #f8fafc;
-            overflow-x: hidden;
+            overflow: hidden;
+            touch-action: none;
         }
         /* Custom miniature tilt-shift canvas styling */
         #canvas-container {
-            position: absolute;
+            position: fixed;
             top: 0;
             left: 0;
-            width: 100%;
-            height: 100%;
+            width: 100vw;
+            height: 100vh;
             z-index: 1;
             outline: none;
         }
         /* Glassmorphism UI Panels */
         .glass-panel {
-            background: rgba(15, 23, 42, 0.75);
+            background: rgba(15, 23, 42, 0.78);
             backdrop-filter: blur(16px);
             -webkit-backdrop-filter: blur(16px);
             border: 1px solid rgba(255, 255, 255, 0.12);
         }
         .glass-card {
-            background: rgba(30, 41, 59, 0.7);
+            background: rgba(30, 41, 59, 0.75);
             backdrop-filter: blur(12px);
             border: 1px solid rgba(255, 255, 255, 0.08);
             transition: all 0.3s cubic-bezier(0.4, 0, 0.2, 1);
@@ -75,17 +76,14 @@
         }
         /* Custom Scrollbar */
         ::-webkit-scrollbar {
-            width: 6px;
+            width: 5px;
         }
         ::-webkit-scrollbar-track {
-            background: rgba(15, 23, 42, 0.5);
+            background: rgba(15, 23, 42, 0.3);
         }
         ::-webkit-scrollbar-thumb {
             background: rgba(255, 255, 255, 0.2);
             border-radius: 3px;
-        }
-        ::-webkit-scrollbar-thumb:hover {
-            background: rgba(59, 130, 246, 0.6);
         }
         .pulse-dot {
             animation: pulse-glow 2s infinite;
@@ -97,13 +95,13 @@
         }
     </style>
 </head>
-<body class="h-full relative select-none">
+<body class="h-full w-full relative select-none">
 
     <!-- 3D WebGL Canvas Container -->
     <div id="canvas-container"></div>
 
     <!-- UI Overlay Layer -->
-    <div class="relative z-10 pointer-events-none h-full flex flex-col justify-between p-3 md:p-6 overflow-hidden">
+    <div class="relative z-10 pointer-events-none h-full w-full flex flex-col justify-between p-3 md:p-6 overflow-hidden">
         
         <!-- Top Navigation & Header -->
         <header class="flex flex-col md:flex-row items-start md:items-center justify-between gap-2 pointer-events-auto">
@@ -122,22 +120,22 @@
 
             <!-- Island Category Filters (Hex Toggles) -->
             <div class="glass-panel p-1.5 rounded-2xl flex items-center gap-1 md:gap-2 overflow-x-auto max-w-full shadow-xl">
-                <button onclick="focusIsland('all')" class="island-filter-btn px-3 py-1.5 rounded-xl text-xs font-bold bg-blue-600 text-white transition-all shadow-md shadow-blue-600/30 flex items-center gap-1.5 whitespace-nowrap">
+                <button onclick="focusIslandCategory('all')" class="island-filter-btn px-3 py-1.5 rounded-xl text-xs font-bold bg-blue-600 text-white transition-all shadow-md shadow-blue-600/30 flex items-center gap-1.5 whitespace-nowrap">
                     <i class="fa-solid fa-globe"></i> <span>全部群島</span>
                 </button>
-                <button onclick="focusIsland('core')" class="island-filter-btn px-2.5 py-1.5 rounded-xl text-xs font-medium text-slate-300 hover:text-white hover:bg-slate-800/60 transition-all flex items-center gap-1.5 whitespace-nowrap">
+                <button onclick="focusIslandCategory('core')" class="island-filter-btn px-2.5 py-1.5 rounded-xl text-xs font-medium text-slate-300 hover:text-white hover:bg-slate-800/65 transition-all flex items-center gap-1.5 whitespace-nowrap">
                     <span class="w-2 h-2 rounded-full bg-blue-500"></span> <span>核心主島</span>
                 </button>
-                <button onclick="focusIsland('vision')" class="island-filter-btn px-2.5 py-1.5 rounded-xl text-xs font-medium text-slate-300 hover:text-white hover:bg-slate-800/60 transition-all flex items-center gap-1.5 whitespace-nowrap">
+                <button onclick="focusIslandCategory('vision')" class="island-filter-btn px-2.5 py-1.5 rounded-xl text-xs font-medium text-slate-300 hover:text-white hover:bg-slate-800/65 transition-all flex items-center gap-1.5 whitespace-nowrap">
                     <span class="w-2 h-2 rounded-full bg-emerald-500"></span> <span>視覺智慧</span>
                 </button>
-                <button onclick="focusIsland('data')" class="island-filter-btn px-2.5 py-1.5 rounded-xl text-xs font-medium text-slate-300 hover:text-white hover:bg-slate-800/60 transition-all flex items-center gap-1.5 whitespace-nowrap">
+                <button onclick="focusIslandCategory('data')" class="island-filter-btn px-2.5 py-1.5 rounded-xl text-xs font-medium text-slate-300 hover:text-white hover:bg-slate-800/65 transition-all flex items-center gap-1.5 whitespace-nowrap">
                     <span class="w-2 h-2 rounded-full bg-amber-500"></span> <span>大數據</span>
                 </button>
-                <button onclick="focusIsland('smart')" class="island-filter-btn px-2.5 py-1.5 rounded-xl text-xs font-medium text-slate-300 hover:text-white hover:bg-slate-800/60 transition-all flex items-center gap-1.5 whitespace-nowrap">
+                <button onclick="focusIslandCategory('smart')" class="island-filter-btn px-2.5 py-1.5 rounded-xl text-xs font-medium text-slate-300 hover:text-white hover:bg-slate-800/65 transition-all flex items-center gap-1.5 whitespace-nowrap">
                     <span class="w-2 h-2 rounded-full bg-rose-500"></span> <span>物聯網</span>
                 </button>
-                <button onclick="focusIsland('future')" class="island-filter-btn px-2.5 py-1.5 rounded-xl text-xs font-medium text-slate-300 hover:text-white hover:bg-slate-800/60 transition-all flex items-center gap-1.5 whitespace-nowrap">
+                <button onclick="focusIslandCategory('future')" class="island-filter-btn px-2.5 py-1.5 rounded-xl text-xs font-medium text-slate-300 hover:text-white hover:bg-slate-800/65 transition-all flex items-center gap-1.5 whitespace-nowrap">
                     <span class="w-2 h-2 rounded-full bg-purple-500"></span> <span>前瞻創新</span>
                 </button>
             </div>
@@ -153,10 +151,10 @@
         </header>
 
         <!-- Main Middle Interactive Workspace -->
-        <main class="flex-1 flex flex-col lg:flex-row items-center justify-between gap-4 my-auto pointer-events-none py-2">
+        <main class="flex-1 flex flex-col lg:flex-row items-center justify-between gap-4 my-auto pointer-events-none py-2 overflow-hidden">
             
             <!-- Left Panel: Island Detail (Collapsible / Drawer on Mobile) -->
-            <div id="left-sidebar" class="w-full lg:w-80 glass-panel p-4 rounded-3xl pointer-events-auto shadow-2xl transition-all duration-300 max-h-[45vh] lg:max-h-[75vh] overflow-y-auto transform translate-y-2 lg:translate-y-0">
+            <div id="left-sidebar" class="w-full lg:w-80 glass-panel p-4 rounded-3xl pointer-events-auto shadow-2xl transition-all duration-300 max-h-[42vh] lg:max-h-[75vh] overflow-y-auto">
                 <div class="flex items-center justify-between mb-3 pb-2.5 border-b border-slate-700/60">
                     <div class="flex items-center gap-2">
                         <div id="sidebar-icon-wrap" class="w-7 h-7 rounded-lg bg-blue-500/20 text-blue-400 flex items-center justify-center font-bold text-sm">
@@ -233,7 +231,7 @@
                 </div>
             </div>
 
-            <!-- Right Panel: Live Activity Stream (Collapsible on Mobile) -->
+            <!-- Right Panel: Live Activity Stream -->
             <div id="right-sidebar" class="w-full lg:w-80 glass-panel p-4 rounded-3xl pointer-events-auto shadow-2xl max-h-[35vh] lg:max-h-[75vh] overflow-y-auto hidden md:block">
                 <div class="flex items-center justify-between mb-3 pb-2.5 border-b border-slate-700/60">
                     <div class="flex items-center gap-2">
@@ -325,50 +323,383 @@
 
     <!-- Course / Channel Detail Modal -->
     <div id="channel-modal" class="fixed inset-0 z-50 flex items-center justify-center p-4 bg-slate-950/80 backdrop-blur-md opacity-0 pointer-events-none transition-all duration-300">
-        <!-- ... existing modal content ... -->
+        <div class="glass-panel w-full max-w-lg p-6 rounded-3xl shadow-2xl relative transform scale-95 transition-all duration-300" id="channel-modal-content">
+            <button onclick="closeChannelModal()" class="absolute top-4 right-4 w-8 h-8 rounded-full bg-slate-800 text-slate-300 hover:text-white flex items-center justify-center">
+                <i class="fa-solid fa-xmark"></i>
+            </button>
+            <div class="flex items-center gap-3 mb-4">
+                <div id="modal-icon-wrap" class="w-12 h-12 rounded-2xl bg-blue-500/20 text-blue-400 flex items-center justify-center text-xl font-bold">
+                    <i id="modal-icon" class="fa-solid fa-brain"></i>
+                </div>
+                <div>
+                    <span id="modal-category" class="text-[10px] uppercase font-bold text-blue-400 tracking-wider">AI 專業學群</span>
+                    <h3 id="modal-title" class="text-lg font-black text-white">機器學習與深度學習</h3>
+                </div>
+            </div>
+            <p id="modal-desc" class="text-xs text-slate-300 leading-relaxed mb-4">
+                本課程群組著重於人工智慧核心演算法、神經網路架構設計與真實世界資料集之模型訓練。
+            </p>
+            <div class="space-y-2 mb-6">
+                <div class="flex items-center justify-between p-2.5 rounded-xl bg-slate-800/50 text-xs">
+                    <span class="text-slate-400">授課師資 / 指導教授</span>
+                    <span id="modal-teacher" class="font-bold text-white">AI系專業師資群</span>
+                </div>
+                <div class="flex items-center justify-between p-2.5 rounded-xl bg-slate-800/50 text-xs">
+                    <span class="text-slate-400">實驗室設備支援</span>
+                    <span id="modal-lab" class="font-bold text-emerald-400">GPU 高效能運算叢集</span>
+                </div>
+            </div>
+            <div class="flex justify-end gap-2">
+                <button onclick="closeChannelModal()" class="px-4 py-2 rounded-xl bg-slate-800 text-slate-300 hover:text-white text-xs font-bold">關閉</button>
+                <a href="https://im3.nhu.edu.tw/Web/Index" target="_blank" class="px-4 py-2 rounded-xl bg-blue-600 hover:bg-blue-500 text-white text-xs font-bold shadow-lg shadow-blue-600/30 flex items-center gap-1.5">
+                    <span>前往系所網站註冊</span> <i class="fa-solid fa-external-link-alt text-[10px]"></i>
+                </a>
+            </div>
+        </div>
     </div>
 
     <!-- AI Assistant Modal -->
     <div id="ai-chat-modal" class="fixed inset-0 z-50 flex items-center justify-center p-4 bg-slate-950/80 backdrop-blur-md opacity-0 pointer-events-none transition-all duration-300">
-        <!-- ... existing ai chat modal ... -->
+        <div class="glass-panel w-full max-w-md p-5 rounded-3xl shadow-2xl relative transform scale-95 transition-all duration-300">
+            <button onclick="closeAIChat()" class="absolute top-4 right-4 w-8 h-8 rounded-full bg-slate-800 text-slate-300 hover:text-white flex items-center justify-center">
+                <i class="fa-solid fa-xmark"></i>
+            </button>
+            <div class="flex items-center gap-3 mb-4">
+                <div class="w-10 h-10 rounded-xl bg-gradient-to-tr from-blue-600 to-emerald-400 flex items-center justify-center text-white">
+                    <i class="fa-solid fa-robot"></i>
+                </div>
+                <div>
+                    <span class="text-[10px] uppercase font-bold text-emerald-400 tracking-wider">NHU AI Assistant</span>
+                    <h3 class="text-sm font-black text-white">南華 AI 系智慧諮詢助教</h3>
+                </div>
+            </div>
+            <div class="bg-slate-900/60 p-3 rounded-2xl text-xs text-slate-300 mb-4 h-40 overflow-y-auto space-y-2 border border-slate-800" id="ai-chat-messages">
+                <div class="p-2.5 rounded-xl bg-blue-600/20 border border-blue-500/30 text-blue-200">
+                    您好！我是南華大學 AI 系智慧助教。請問您想了解哪一座群島或哪一門人工智慧課程呢？
+                </div>
+            </div>
+            <div class="flex gap-2">
+                <input type="text" id="ai-chat-input" placeholder="輸入您的問題..." class="flex-1 bg-slate-900 border border-slate-700 rounded-xl px-3 py-2 text-xs text-white focus:outline-none focus:border-blue-500">
+                <button onclick="sendAIChat()" class="px-4 py-2 bg-blue-600 hover:bg-blue-500 text-white rounded-xl text-xs font-bold shadow-md shadow-blue-600/30">發送</button>
+            </div>
+        </div>
     </div>
 
     <!-- Three.js 3D Miniature Model Archipelago Script -->
     <script>
-        // ... existing JS variables & init3D ...
+        // Island Data Structure representing NHU AI Department
+        const islandData = [
+            {
+                id: 'core',
+                name: '南華 AI 核心學群',
+                desc: '人工智慧應用學系主基石，涵蓋高等數學、線性代數、演算法與智慧系統架構基礎。',
+                icon: 'fa-brain',
+                accentColor: '#3b82f6',
+                position: { x: 0, z: 0 },
+                channels: [
+                    { name: '機器學習與深度學習頻道', status: '進行中', desc: '神經網路模型訓練、PyTorch 影像辨識專題與智慧代理人實作。', students: 48 },
+                    { name: '智慧型代理人與大模型應用', status: '熱門', desc: 'LLM 提示工程、RAG 檢索增強生成與自適應 AI 系統。', students: 52 }
+                ]
+            },
+            {
+                id: 'vision',
+                name: '電腦視覺與影像辨識島',
+                desc: '結合先進鏡頭與深度卷積網路，讓機器學會看見與理解真實世界。',
+                icon: 'fa-eye',
+                accentColor: '#10b981',
+                position: { x: 5.5, z: -3.2 },
+                channels: [
+                    { name: '電腦視覺與影像處理', status: '進行中', desc: 'OpenCV 影像特徵擷取、YOLOv8 物件偵測與即時追蹤。', students: 41 },
+                    { name: '醫療影像智慧辨識', status: '專案展示', desc: 'X光與MRI斷層掃描之AI輔助診斷模型研發。', students: 29 }
+                ]
+            },
+            {
+                id: 'data',
+                name: '大數據與雲端運算島',
+                desc: '海量資料探勘、分散式雲端架構與智慧商業預測模型。',
+                icon: 'fa-database',
+                accentColor: '#f59e0b',
+                position: { x: -5.5, z: -3.2 },
+                channels: [
+                    { name: '大數據分析與探勘', status: '進行中', desc: 'Hadoop/Spark 分散式運算與消費者行為預測。', students: 38 },
+                    { name: '雲端資料庫與系統維運', status: '實作中', desc: 'NoSQL 資料庫設計與 Docker 容器化微服務部署。', students: 34 }
+                ]
+            },
+            {
+                id: 'smart',
+                name: 'Edge AI 與物聯網島',
+                desc: '將AI演算法植入嵌入式晶片，實現智慧家居、無人車與智慧農業。',
+                icon: 'fa-microchip',
+                accentColor: '#f43f5e',
+                position: { x: 5.5, z: 3.2 },
+                channels: [
+                    { name: 'Edge AI 與物聯網應用', status: '專案展示', desc: 'Raspberry Pi 與 Jetson Nano 之智慧感測邊緣運算。', students: 36 },
+                    { name: '智慧機器人控制實習', status: '競賽中', desc: 'AGV 自走車避障導航與ROS機器人作業系統。', students: 30 }
+                ]
+            },
+            {
+                id: 'future',
+                name: '前瞻AI與創新實驗島',
+                desc: '探索生成式AI、元宇宙互動、人機介面與跨領域創新應用。',
+                icon: 'fa-rocket',
+                accentColor: '#8b5cf6',
+                position: { x: -5.5, z: 3.2 },
+                channels: [
+                    { name: '生成式AI與數位藝術', status: '熱門', desc: 'Diffusion 擴散模型生成與互動式多媒體創作。', students: 45 },
+                    { name: '產學專題實作與創業育成', status: '結案展演', desc: '與各大科技企業合作之 AI 商業解決方案提案。', students: 50 }
+                ]
+            }
+        ];
+
+        let scene, camera, renderer, raycaster, mouse;
+        let islands = [];
+        let isAutoRotate = false;
         let isPanelsVisible = true;
+        let hoveredIsland = null;
+        let selectedIslandId = 'core';
 
-        function toggleMobilePanels() {
-            isPanelsVisible = !isPanelsVisible;
-            const leftSidebar = document.getElementById('left-sidebar');
-            const rightSidebar = document.getElementById('right-sidebar');
-            const btn = document.getElementById('mobile-toggle-panel-btn');
+        // Initialize 3D Miniature World
+        function init3D() {
+            const container = document.getElementById('canvas-container');
+            
+            scene = new THREE.Scene();
+            scene.background = new THREE.Color(0x0f172a);
+            scene.fog = new THREE.FogExp2(0x0f172a, 0.035);
 
-            if (isPanelsVisible) {
-                leftSidebar.style.display = 'block';
-                if (rightSidebar) rightSidebar.style.display = 'block';
-                btn.innerHTML = '<i class="fa-solid fa-eye-slash"></i> 隱藏面板';
+            camera = new THREE.PerspectiveCamera(45, window.innerWidth / window.innerHeight, 0.1, 1000);
+            camera.position.set(0, 14, 16);
+            camera.lookAt(0, 0, 0);
+
+            renderer = new THREE.WebGLRenderer({ antialias: true, alpha: true });
+            renderer.setSize(window.innerWidth, window.innerHeight);
+            renderer.setPixelRatio(Math.min(window.devicePixelRatio, 2));
+            renderer.shadowMap.enabled = true;
+            renderer.shadowMap.type = THREE.PCFSoftShadowMap;
+            container.appendChild(renderer.domElement);
+
+            raycaster = new THREE.Raycaster();
+            mouse = new THREE.Vector2();
+
+            // Lighting for Tilt-Shift Toy Model feel
+            const ambientLight = new THREE.AmbientLight(0xffffff, 0.7);
+            scene.add(ambientLight);
+
+            const sunLight = new THREE.DirectionalLight(0xfffbeb, 1.2);
+            sunLight.position.set(15, 25, 15);
+            sunLight.castShadow = true;
+            sunLight.shadow.mapSize.width = 2048;
+            sunLight.shadow.mapSize.height = 2048;
+            sunLight.shadow.camera.near = 0.5;
+            sunLight.shadow.camera.far = 50;
+            const d = 15;
+            sunLight.shadow.camera.left = -d;
+            sunLight.shadow.camera.right = d;
+            sunLight.shadow.camera.top = d;
+            sunLight.shadow.camera.bottom = -d;
+            scene.add(sunLight);
+
+            const blueFill = new THREE.DirectionalLight(0x3b82f6, 0.5);
+            blueFill.position.set(-15, 10, -15);
+            scene.add(blueFill);
+
+            // Water plane base
+            const waterGeo = new THREE.PlaneGeometry(100, 100);
+            const waterMat = new THREE.MeshStandardMaterial({
+                color: 0x1e293b,
+                roughness: 0.2,
+                metalness: 0.8
+            });
+            const water = new THREE.Mesh(waterGeo, waterMat);
+            water.rotation.x = -Math.PI / 2;
+            water.position.y = -0.8;
+            scene.add(water);
+
+            // Create Hexagonal Islands
+            islandData.forEach((data, index) => {
+                const islandGroup = createHexIsland(data);
+                islandGroup.position.set(data.position.x, 0, data.position.z);
+                islandGroup.userData = data;
+                scene.add(islandGroup);
+                islands.push(islandGroup);
+            });
+
+            // Event Listeners
+            window.addEventListener('resize', onWindowResize);
+            window.addEventListener('pointermove', onPointerMove);
+            window.addEventListener('pointerdown', onPointerDown);
+
+            // Touch / Mouse Orbit Control variables
+            let isDragging = false;
+            let previousMousePosition = { x: 0, y: 0 };
+
+            container.addEventListener('pointerdown', (e) => {
+                isDragging = true;
+                previousMousePosition = { x: e.clientX, y: e.clientY };
+            });
+
+            container.addEventListener('pointermove', (e) => {
+                if (!isDragging) return;
+                const deltaX = e.clientX - previousMousePosition.x;
+                const deltaY = e.clientY - previousMousePosition.y;
+
+                scene.rotation.y += deltaX * 0.005;
+
+                previousMousePosition = { x: e.clientX, y: e.clientY };
+            });
+
+            window.addEventListener('pointerup', () => {
+                isDragging = false;
+            });
+
+            animate();
+        }
+
+        // Create Hexagonal Island Model with Toy/Miniature buildings
+        function createHexIsland(data) {
+            const group = new THREE.Group();
+            const radius = 3.2;
+            const height = 1.2;
+
+            // Hexagon base shape
+            const hexShape = new THREE.Shape();
+            for (let i = 0; i < 6; i++) {
+                const angle = (i * Math.PI) / 3;
+                const x = radius * Math.cos(angle);
+                const y = radius * Math.sin(angle);
+                if (i === 0) hexShape.moveTo(x, y);
+                else hexShape.lineTo(x, y);
+            }
+
+            const extrudeSettings = {
+                depth: height,
+                bevelEnabled: true,
+                bevelSegments: 2,
+                steps: 1,
+                bevelSize: 0.1,
+                bevelThickness: 0.1
+            };
+
+            const geom = new THREE.ExtrudeGeometry(hexShape, extrudeSettings);
+            geom.rotateX(Math.PI / 2);
+
+            const baseColor = data.id === 'core' ? 0x2563eb : 
+                              data.id === 'vision' ? 0x059669 : 
+                              data.id === 'data' ? 0xd97706 : 
+                              data.id === 'smart' ? 0xe11d48 : 0x7c3aed;
+
+            const mat = new THREE.MeshStandardMaterial({
+                color: baseColor,
+                roughness: 0.4,
+                metalness: 0.1
+            });
+
+            const mesh = new THREE.Mesh(geom, mat);
+            mesh.position.y = -height;
+            mesh.castShadow = true;
+            mesh.receiveShadow = true;
+            group.add(mesh);
+
+            // Ground top green grass layer
+            const topGeo = new THREE.CylinderGeometry(radius * 0.95, radius * 0.95, 0.1, 6);
+            const topMat = new THREE.MeshStandardMaterial({ color: 0x334155, roughness: 0.8 });
+            const topMesh = new THREE.Mesh(topGeo, topMat);
+            topMesh.position.y = 0.05;
+            topMesh.receiveShadow = true;
+            group.add(topMesh);
+
+            // Add Miniature Toy Buildings / Crystals on the island
+            const buildingMat = new THREE.MeshStandardMaterial({ color: 0xf8fafc, roughness: 0.3, metalness: 0.2 });
+            const accentMat = new THREE.MeshStandardMaterial({ color: baseColor, roughness: 0.2 });
+
+            for (let i = 0; i < 3; i++) {
+                const bWidth = 0.6 + Math.random() * 0.6;
+                const bHeight = 1.0 + Math.random() * 1.5;
+                const bDepth = 0.6 + Math.random() * 0.6;
+                const bGeom = new THREE.BoxGeometry(bWidth, bHeight, bDepth);
+                const bMesh = new THREE.Mesh(bGeom, i === 0 ? accentMat : buildingMat);
+                
+                const angle = (i / 3) * Math.PI * 2 + 0.5;
+                const dist = 1.0;
+                bMesh.position.set(Math.cos(angle) * dist, bHeight / 2, Math.sin(angle) * dist);
+                bMesh.castShadow = true;
+                bMesh.receiveShadow = true;
+                group.add(bMesh);
+            }
+
+            // Floating glowing marker icon ring above island
+            const ringGeo = new THREE.RingGeometry(0.8, 1.0, 16);
+            const ringMat = new THREE.MeshBasicMaterial({ color: baseColor, side: THREE.DoubleSide, transparent: true, opacity: 0.8 });
+            const ring = new THREE.Mesh(ringGeo, ringMat);
+            ring.rotation.x = -Math.PI / 2;
+            ring.position.y = 2.8;
+            ring.name = 'ring';
+            group.add(ring);
+
+            return group;
+        }
+
+        function onWindowResize() {
+            camera.aspect = window.innerWidth / window.innerHeight;
+            camera.updateProjectionMatrix();
+            renderer.setSize(window.innerWidth, window.innerHeight);
+        }
+
+        function onPointerMove(e) {
+            mouse.x = (e.clientX / window.innerWidth) * 2 - 1;
+            mouse.y = -(e.clientY / window.innerHeight) * 2 + 1;
+
+            raycaster.setFromCamera(mouse, camera);
+            const intersects = raycaster.intersectObjects(islands, true);
+
+            if (intersects.length > 0) {
+                let obj = intersects[0].object;
+                while (obj.parent && !obj.userData.id) {
+                    obj = obj.parent;
+                }
+                if (obj.userData.id) {
+                    document.body.style.cursor = 'pointer';
+                    hoveredIsland = obj;
+                }
             } else {
-                leftSidebar.style.display = 'none';
-                if (rightSidebar) rightSidebar.style.display = 'none';
-                btn.innerHTML = '<i class="fa-solid fa-eye"></i> 顯示資訊';
+                document.body.style.cursor = 'default';
+                hoveredIsland = null;
             }
         }
 
-        function toggleMobileSidebar() {
-            const content = document.getElementById('sidebar-collapsible-content');
-            const icon = document.getElementById('sidebar-toggle-icon');
-            if (content.style.display === 'none') {
-                content.style.display = 'block';
-                icon.className = 'fa-solid fa-chevron-down';
-            } else {
-                content.style.display = 'none';
-                icon.className = 'fa-solid fa-chevron-up';
+        function onPointerDown(e) {
+            // Ignore if clicking UI
+            if (e.target.closest('#left-sidebar') || e.target.closest('#right-sidebar') || e.target.closest('header') || e.target.closest('footer') || e.target.closest('.fixed')) {
+                return;
+            }
+
+            raycaster.setFromCamera(mouse, camera);
+            const intersects = raycaster.intersectObjects(islands, true);
+
+            if (intersects.length > 0) {
+                let obj = intersects[0].object;
+                while (obj.parent && !obj.userData.id) {
+                    obj = obj.parent;
+                }
+                if (obj.userData.id) {
+                    selectIsland(obj.userData);
+                    
+                    // Smoothly rotate camera toward selected island
+                    gsap.to(camera.position, {
+                        x: obj.position.x * 1.2,
+                        y: 12,
+                        z: obj.position.z + 14,
+                        duration: 1.2,
+                        ease: 'power2.out',
+                        onUpdate: () => camera.lookAt(obj.position.x, 0, obj.position.z)
+                    });
+                }
             }
         }
 
         function selectIsland(data) {
-            // Automatically make panels visible on mobile when an island is clicked so user sees details
+            selectedIslandId = data.id;
+
+            // Automatically reveal panels on mobile if hidden
             if (window.innerWidth < 768 && !isPanelsVisible) {
                 toggleMobilePanels();
             }
@@ -403,14 +734,157 @@
 
             islands.forEach(island => {
                 if (island.userData.id === data.id) {
-                    gsap.to(island.scale, { x: 1.2, y: 1.2, z: 1.2, duration: 0.5 });
+                    gsap.to(island.scale, { x: 1.25, y: 1.25, z: 1.25, duration: 0.5 });
                 } else {
                     gsap.to(island.scale, { x: 1.0, y: 1.0, z: 1.0, duration: 0.5 });
                 }
             });
         }
-        
-        // ... existing animation and modal functions ...
+
+        function focusIslandCategory(categoryId) {
+            if (categoryId === 'all') {
+                resetCameraView();
+                selectIsland(islandData[0]);
+            } else {
+                const found = islandData.find(i => i.id === categoryId);
+                if (found) {
+                    selectIsland(found);
+                    const islandObj = islands.find(i => i.userData.id === categoryId);
+                    if (islandObj) {
+                        gsap.to(camera.position, {
+                            x: islandObj.position.x * 1.2,
+                            y: 11,
+                            z: islandObj.position.z + 12,
+                            duration: 1.2,
+                            ease: 'power2.out',
+                            onUpdate: () => camera.lookAt(islandObj.position.x, 0, islandObj.position.z)
+                        });
+                    }
+                }
+            }
+        }
+
+        function resetCameraView() {
+            gsap.to(camera.position, { x: 0, y: 14, z: 16, duration: 1.2, ease: 'power2.out', onUpdate: () => camera.lookAt(0, 0, 0) });
+            scene.rotation.y = 0;
+            selectIsland(islandData[0]);
+        }
+
+        function toggleAutoRotate() {
+            isAutoRotate = !isAutoRotate;
+            const btn = document.getElementById('autorotate-btn');
+            if (isAutoRotate) {
+                btn.innerHTML = '<i class="fa-solid fa-pause"></i> 停止';
+                btn.className = 'px-3 py-1.5 rounded-xl bg-emerald-600 hover:bg-emerald-500 text-white text-xs font-bold transition-all flex items-center gap-1 shadow-lg shadow-emerald-600/30';
+            } else {
+                btn.innerHTML = '<i class="fa-solid fa-play"></i> 環視';
+                btn.className = 'px-3 py-1.5 rounded-xl bg-blue-600 hover:bg-blue-500 text-white text-xs font-bold transition-all flex items-center gap-1 shadow-lg shadow-blue-600/30';
+            }
+        }
+
+        function toggleMobilePanels() {
+            isPanelsVisible = !isPanelsVisible;
+            const leftSidebar = document.getElementById('left-sidebar');
+            const rightSidebar = document.getElementById('right-sidebar');
+            const btn = document.getElementById('mobile-toggle-panel-btn');
+
+            if (isPanelsVisible) {
+                leftSidebar.style.display = 'block';
+                if (rightSidebar) rightSidebar.style.display = 'block';
+                btn.innerHTML = '<i class="fa-solid fa-eye-slash"></i> 隱藏面板';
+            } else {
+                leftSidebar.style.display = 'none';
+                if (rightSidebar) rightSidebar.style.display = 'none';
+                btn.innerHTML = '<i class="fa-solid fa-eye"></i> 顯示資訊';
+            }
+        }
+
+        function toggleMobileSidebar() {
+            const content = document.getElementById('sidebar-collapsible-content');
+            const icon = document.getElementById('sidebar-toggle-icon');
+            if (content.style.display === 'none') {
+                content.style.display = 'block';
+                icon.className = 'fa-solid fa-chevron-down';
+            } else {
+                content.style.display = 'none';
+                icon.className = 'fa-solid fa-chevron-up';
+            }
+        }
+
+        function openChannelModal(islandId) {
+            const data = islandData.find(i => i.id === islandId) || islandData[0];
+            document.getElementById('modal-title').textContent = data.name;
+            document.getElementById('modal-desc').textContent = data.desc;
+            document.getElementById('modal-icon').className = `fa-solid ${data.icon}`;
+            document.getElementById('modal-icon-wrap').style.color = data.accentColor;
+            document.getElementById('modal-icon-wrap').style.background = `${data.accentColor}20`;
+
+            const modal = document.getElementById('channel-modal');
+            modal.classList.remove('opacity-0', 'pointer-events-none');
+            modal.querySelector('.transform').classList.remove('scale-95');
+            modal.querySelector('.transform').classList.add('scale-100');
+        }
+
+        function closeChannelModal() {
+            const modal = document.getElementById('channel-modal');
+            modal.classList.add('opacity-0', 'pointer-events-none');
+            modal.querySelector('.transform').classList.add('scale-95');
+            modal.querySelector('.transform').classList.remove('scale-100');
+        }
+
+        function triggerAIChat() {
+            const modal = document.getElementById('ai-chat-modal');
+            modal.classList.remove('opacity-0', 'pointer-events-none');
+            modal.querySelector('.transform').classList.remove('scale-95');
+            modal.querySelector('.transform').classList.add('scale-100');
+        }
+
+        function closeAIChat() {
+            const modal = document.getElementById('ai-chat-modal');
+            modal.classList.add('opacity-0', 'pointer-events-none');
+            modal.querySelector('.transform').classList.add('scale-95');
+            modal.querySelector('.transform').classList.remove('scale-100');
+        }
+
+        function sendAIChat() {
+            const input = document.getElementById('ai-chat-input');
+            const msgBox = document.getElementById('ai-chat-messages');
+            const txt = input.value.trim();
+            if (!txt) return;
+
+            msgBox.innerHTML += `<div class="p-2.5 rounded-xl bg-slate-800 text-slate-200 text-right"><b>您：</b> ${txt}</div>`;
+            input.value = '';
+
+            setTimeout(() => {
+                msgBox.innerHTML += `<div class="p-2.5 rounded-xl bg-blue-600/20 border border-blue-500/30 text-blue-200"><b>AI助教：</b> 關於「${txt}」，南華大學 AI 系提供完整的 GPU 實驗室與實作課程，歡迎至系所官網深入了解！</div>`;
+                msgBox.scrollTop = msgBox.scrollHeight;
+            }, 600);
+        }
+
+        // Animation Loop
+        function animate() {
+            requestAnimationFrame(animate);
+
+            if (isAutoRotate) {
+                scene.rotation.y += 0.003;
+            }
+
+            // Gentle floating animation for island rings
+            islands.forEach((island, i) => {
+                const ring = island.getObjectByName('ring');
+                if (ring) {
+                    ring.rotation.z += 0.01;
+                    ring.position.y = 2.8 + Math.sin(Date.now() * 0.003 + i) * 0.15;
+                }
+            });
+
+            renderer.render(scene, camera);
+        }
+
+        window.onload = function() {
+            init3D();
+            selectIsland(islandData[0]);
+        };
     </script>
 </body>
 </html>
