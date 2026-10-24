@@ -41,51 +41,61 @@
     <style>
         body {
             font-family: 'Plus Jakarta Sans', 'Noto Sans TC', sans-serif;
-            background-color: #0f172a;
+            background-color: #0b1120;
             color: #f8fafc;
-            overflow-x: hidden;
+            overflow: hidden;
+            touch-action: none;
         }
-        /* Custom miniature tilt-shift canvas styling */
         #canvas-container {
-            position: absolute;
+            position: fixed;
             top: 0;
             left: 0;
-            width: 100%;
-            height: 100%;
+            width: 100vw;
+            height: 100vh;
             z-index: 1;
             outline: none;
         }
-        /* Glassmorphism UI Panels */
         .glass-panel {
-            background: rgba(15, 23, 42, 0.75);
+            background: rgba(11, 17, 32, 0.85);
             backdrop-filter: blur(16px);
             -webkit-backdrop-filter: blur(16px);
-            border: 1px solid rgba(255, 255, 255, 0.12);
+            border: 1px solid rgba(255, 255, 255, 0.15);
+            box-shadow: 0 20px 40px -15px rgba(0, 0, 0, 0.7);
         }
         .glass-card {
-            background: rgba(30, 41, 59, 0.7);
+            background: rgba(30, 41, 59, 0.85);
             backdrop-filter: blur(12px);
-            border: 1px solid rgba(255, 255, 255, 0.08);
+            border: 1px solid rgba(255, 255, 255, 0.1);
             transition: all 0.3s cubic-bezier(0.4, 0, 0.2, 1);
         }
         .glass-card:hover {
-            border-color: rgba(59, 130, 246, 0.5);
+            border-color: rgba(59, 130, 246, 0.6);
             transform: translateY(-2px);
-            box-shadow: 0 10px 25px -5px rgba(59, 130, 246, 0.2);
+            box-shadow: 0 12px 30px -5px rgba(59, 130, 246, 0.25);
         }
-        /* Custom Scrollbar */
+        /* 3D Floating Tag attached to islands */
+        #island-tooltip {
+            position: absolute;
+            transform: translate(-50%, -120%);
+            z-index: 30;
+            pointer-events: auto;
+            transition: opacity 0.25s ease, transform 0.25s ease;
+            opacity: 0;
+            pointer-events: none;
+        }
+        #island-tooltip.active {
+            opacity: 1;
+            pointer-events: auto;
+        }
         ::-webkit-scrollbar {
-            width: 6px;
+            width: 5px;
         }
         ::-webkit-scrollbar-track {
             background: rgba(15, 23, 42, 0.5);
         }
         ::-webkit-scrollbar-thumb {
-            background: rgba(255, 255, 255, 0.2);
+            background: rgba(255, 255, 255, 0.25);
             border-radius: 3px;
-        }
-        ::-webkit-scrollbar-thumb:hover {
-            background: rgba(59, 130, 246, 0.6);
         }
         .pulse-dot {
             animation: pulse-glow 2s infinite;
@@ -97,257 +107,120 @@
         }
     </style>
 </head>
-<body class="h-full relative select-none">
+<body class="h-full w-full relative select-none">
 
     <!-- 3D WebGL Canvas Container -->
     <div id="canvas-container"></div>
 
-    <!-- UI Overlay Layer -->
-    <div class="relative z-10 pointer-events-none h-full flex flex-col justify-between p-4 md:p-6">
+    <!-- Floating 3D Island Tooltip (Appears right above/below the clicked 3D island) -->
+    <div id="island-tooltip" class="glass-panel w-72 md:w-80 p-4 rounded-3xl shadow-2xl">
+        <div class="flex items-center justify-between mb-2 pb-2 border-b border-slate-700/60">
+            <div class="flex items-center gap-2">
+                <div id="tooltip-icon-wrap" class="w-7 h-7 rounded-lg bg-blue-500/20 text-blue-400 flex items-center justify-center font-bold text-sm">
+                    <i id="tooltip-icon" class="fa-solid fa-graduation-cap"></i>
+                </div>
+                <div>
+                    <span class="text-[9px] uppercase font-bold text-blue-400 tracking-wider">AI 系課程群組</span>
+                    <h2 id="tooltip-title" class="text-xs md:text-sm font-black text-white">南華 AI 核心學群</h2>
+                </div>
+            </div>
+            <button onclick="closeTooltip()" class="w-6 h-6 rounded-full bg-slate-800 text-slate-300 hover:text-white flex items-center justify-center text-xs">
+                <i class="fa-solid fa-xmark"></i>
+            </button>
+        </div>
+        <p id="tooltip-desc" class="text-[11px] text-slate-300 leading-relaxed mb-3">
+          點擊 3D 模型群島中的任一六角島嶼，即可探索南華大學人工智慧應用學系的多元課程與實驗室專案。
+        </p>
+        <div class="space-y-2 mb-3" id="tooltip-channels">
+            <!-- Dynamic channel items -->
+        </div>
+        <div class="flex items-center justify-between pt-2 border-t border-slate-700/50">
+            <a href="https://im3.nhu.edu.tw/Web/Index" target="_blank" class="text-[10px] text-blue-400 hover:text-blue-300 font-bold flex items-center gap-1">
+                <i class="fa-solid fa-globe"></i> 官方網站 <i class="fa-solid fa-external-link-alt text-[8px]"></i>
+            </a>
+            <button onclick="openChannelModalFromTooltip()" class="px-2.5 py-1 rounded-lg bg-blue-600 hover:bg-blue-500 text-white text-[10px] font-bold shadow-md shadow-blue-500/20 transition-all">
+                詳細資訊
+            </button>
+        </div>
+    </div>
+
+    <!-- UI Overlay Layer (Non-intrusive headers/footers that don't block the 3D islands) -->
+    <div class="relative z-20 pointer-events-none h-full w-full flex flex-col justify-between p-3 md:p-6 overflow-hidden">
         
         <!-- Top Navigation & Header -->
-        <header class="flex flex-col md:flex-row items-start md:items-center justify-between gap-4 pointer-events-auto">
-            <div class="glass-panel px-5 py-3 rounded-2xl flex items-center gap-3 shadow-xl">
-                <div class="w-10 h-10 rounded-xl bg-gradient-to-tr from-blue-600 to-emerald-400 flex items-center justify-center shadow-lg shadow-blue-500/30">
-                    <i class="fa-solid fa-cube text-white text-lg"></i>
+        <header class="flex flex-col md:flex-row items-start md:items-center justify-between gap-2 pointer-events-auto">
+            <div class="glass-panel px-4 py-2.5 rounded-2xl flex items-center gap-3">
+                <div class="w-9 h-9 rounded-xl bg-gradient-to-tr from-blue-600 to-emerald-400 flex items-center justify-center shadow-lg shadow-blue-500/30">
+                    <i class="fa-solid fa-cube text-white text-base"></i>
                 </div>
                 <div>
                     <div class="flex items-center gap-2">
-                        <span class="text-xs uppercase tracking-wider font-semibold text-emerald-400 bg-emerald-950/60 px-2 py-0.5 rounded-full border border-emerald-500/30">南華大學</span>
-                        <span class="text-xs text-slate-400">NHU AI Archipelagos</span>
+                        <span class="text-[10px] uppercase tracking-wider font-semibold text-emerald-400 bg-emerald-950/80 px-2 py-0.5 rounded-full border border-emerald-500/30">南華大學</span>
+                        <span class="text-[10px] text-slate-400 hidden sm:inline">NHU AI Archipelagos</span>
                     </div>
-                    <h1 class="text-lg md:text-xl font-black tracking-tight text-white">AI系群島 <span class="text-blue-400">即時智慧微縮模型</span></h1>
+                    <h1 class="text-sm md:text-xl font-black tracking-tight text-white">AI系群島 <span class="text-blue-400">3D 互動微縮模型</span></h1>
                 </div>
             </div>
 
             <!-- Island Category Filters (Hex Toggles) -->
-            <div class="glass-panel p-2 rounded-2xl flex items-center gap-1.5 md:gap-2 overflow-x-auto max-w-full shadow-xl">
-                <button onclick="focusIsland('all')" class="island-filter-btn px-4 py-2 rounded-xl text-xs md:text-sm font-bold bg-blue-600 text-white transition-all shadow-md shadow-blue-600/30 flex items-center gap-2 whitespace-nowrap">
+            <div class="glass-panel p-1.5 rounded-2xl flex items-center gap-1 md:gap-2 overflow-x-auto max-w-full pointer-events-auto">
+                <button onclick="focusIslandCategory('all')" class="island-filter-btn px-3 py-1.5 rounded-xl text-xs font-bold bg-blue-600 text-white transition-all shadow-md shadow-blue-600/30 flex items-center gap-1.5 whitespace-nowrap">
                     <i class="fa-solid fa-globe"></i> <span>全部群島</span>
                 </button>
-                <button onclick="focusIsland('core')" class="island-filter-btn px-3 py-2 rounded-xl text-xs md:text-sm font-medium text-slate-300 hover:text-white hover:bg-slate-800/60 transition-all flex items-center gap-2 whitespace-nowrap">
-                    <span class="w-2.5 h-2.5 rounded-full bg-blue-500"></i></span> <span>核心AI主島</span>
+                <button onclick="focusIslandCategory('core')" class="island-filter-btn px-2.5 py-1.5 rounded-xl text-xs font-medium text-slate-300 hover:text-white hover:bg-slate-800/80 transition-all flex items-center gap-1.5 whitespace-nowrap">
+                    <span class="w-2 h-2 rounded-full bg-blue-500"></span> <span>核心主島</span>
                 </button>
-                <button onclick="focusIsland('vision')" class="island-filter-btn px-3 py-2 rounded-xl text-xs md:text-sm font-medium text-slate-300 hover:text-white hover:bg-slate-800/60 transition-all flex items-center gap-2 whitespace-nowrap">
-                    <span class="w-2.5 h-2.5 rounded-full bg-emerald-500"></span> <span>視覺智慧島</span>
+                <button onclick="focusIslandCategory('vision')" class="island-filter-btn px-2.5 py-1.5 rounded-xl text-xs font-medium text-slate-300 hover:text-white hover:bg-slate-800/80 transition-all flex items-center gap-1.5 whitespace-nowrap">
+                    <span class="w-2 h-2 rounded-full bg-emerald-500"></span> <span>視覺智慧</span>
                 </button>
-                <button onclick="focusIsland('data')" class="island-filter-btn px-3 py-2 rounded-xl text-xs md:text-sm font-medium text-slate-300 hover:text-white hover:bg-slate-800/60 transition-all flex items-center gap-2 whitespace-nowrap">
-                    <span class="w-2.5 h-2.5 rounded-full bg-amber-500"></span> <span>大數據運算島</span>
+                <button onclick="focusIslandCategory('data')" class="island-filter-btn px-2.5 py-1.5 rounded-xl text-xs font-medium text-slate-300 hover:text-white hover:bg-slate-800/80 transition-all flex items-center gap-1.5 whitespace-nowrap">
+                    <span class="w-2 h-2 rounded-full bg-amber-500"></span> <span>大數據</span>
                 </button>
-                <button onclick="focusIsland('smart')" class="island-filter-btn px-3 py-2 rounded-xl text-xs md:text-sm font-medium text-slate-300 hover:text-white hover:bg-slate-800/60 transition-all flex items-center gap-2 whitespace-nowrap">
-                    <span class="w-2.5 h-2.5 rounded-full bg-rose-500"></span> <span>智慧物聯網島</span>
+                <button onclick="focusIslandCategory('smart')" class="island-filter-btn px-2.5 py-1.5 rounded-xl text-xs font-medium text-slate-300 hover:text-white hover:bg-slate-800/80 transition-all flex items-center gap-1.5 whitespace-nowrap">
+                    <span class="w-2 h-2 rounded-full bg-rose-500"></span> <span>物聯網</span>
                 </button>
-                <button onclick="focusIsland('future')" class="island-filter-btn px-3 py-2 rounded-xl text-xs md:text-sm font-medium text-slate-300 hover:text-white hover:bg-slate-800/60 transition-all flex items-center gap-2 whitespace-nowrap">
-                    <span class="w-2.5 h-2.5 rounded-full bg-purple-500"></span> <span>前瞻創新島</span>
+                <button onclick="focusIslandCategory('future')" class="island-filter-btn px-2.5 py-1.5 rounded-xl text-xs font-medium text-slate-300 hover:text-white hover:bg-slate-800/80 transition-all flex items-center gap-1.5 whitespace-nowrap">
+                    <span class="w-2 h-2 rounded-full bg-purple-500"></span> <span>前瞻創新</span>
                 </button>
             </div>
 
             <!-- Quick Live Stats Counter -->
-            <div class="glass-panel px-4 py-2 rounded-2xl hidden lg:flex items-center gap-4 shadow-xl">
+            <div class="glass-panel px-3 py-1.5 rounded-2xl hidden lg:flex items-center gap-3">
                 <div class="flex items-center gap-2">
-                    <span class="w-3 h-3 rounded-full bg-emerald-500 pulse-dot"></span>
-                    <span class="text-xs text-slate-300">線上互動人數:</span>
-                    <span id="online-users" class="text-sm font-black text-emerald-400">142</span>
-                </div>
-                <div class="h-4 w-px bg-slate-700"></div>
-                <div class="flex items-center gap-2">
-                    <span class="text-xs text-slate-300">運算流速:</span>
-                    <span class="text-sm font-black text-blue-400">1.2 TB/s</span>
+                    <span class="w-2.5 h-2.5 rounded-full bg-emerald-500 pulse-dot"></span>
+                    <span class="text-xs text-slate-300">線上探索:</span>
+                    <span class="text-xs font-black text-emerald-400">142</span>
                 </div>
             </div>
         </header>
 
-        <!-- Main Middle Interactive Workspace -->
-        <main class="flex-1 flex flex-col lg:flex-row items-center justify-between gap-6 my-auto pointer-events-none py-4">
-            
-            <!-- Left Panel: Island Detail & Course Groups -->
-            <div id="left-sidebar" class="w-full lg:w-80 glass-panel p-5 rounded-3xl pointer-events-auto shadow-2xl transition-all duration-300 max-h-[75vh] overflow-y-auto">
-                <div class="flex items-center justify-between mb-4 pb-3 border-b border-slate-700/60">
-                    <div class="flex items-center gap-2.5">
-                        <div id="sidebar-icon-wrap" class="w-8 h-8 rounded-lg bg-blue-500/20 text-blue-400 flex items-center justify-center font-bold">
-                            <i id="sidebar-icon" class="fa-solid fa-graduation-cap"></i>
-                        </div>
-                        <div>
-                            <span class="text-[10px] uppercase font-bold text-blue-400 tracking-wider">AI 系課程群組</span>
-                            <h2 id="sidebar-title" class="text-base font-black text-white">南華 AI 核心學群</h2>
-                        </div>
-                    </div>
-                    <span class="text-xs font-bold px-2.5 py-1 rounded-full bg-blue-500/20 text-blue-300 border border-blue-500/30" id="sidebar-status">運行中</span>
-                </div>
-
-                <p id="sidebar-desc" class="text-xs text-slate-300 leading-relaxed mb-4">
-                  點擊 3D 模型群島中的任一六角島嶼，即可探索南華大學人工智慧應用學系的多元課程、師資陣容、實驗室專案與即時活動數據。
-                </p>
-
-                <!-- Dynamic Data Visualization Cards -->
-                <div class="space-y-3" id="sidebar-channels">
-                    <div class="glass-card p-3.5 rounded-2xl cursor-pointer" onclick="openChannelModal('machine-learning')">
-                        <div class="flex items-center justify-between mb-1.5">
-                            <div class="flex items-center gap-2">
-                                <i class="fa-solid fa-brain text-blue-400"></i>
-                                <span class="text-xs font-bold text-white">機器學習與深度學習頻道</span>
-                            </div>
-                            <span class="text-[10px] text-emerald-400 font-semibold bg-emerald-950/80 px-2 py-0.5 rounded">實作進行中</span>
-                        </div>
-                        <p class="text-[11px] text-slate-400 mb-2">神經網路模型訓練、PyTorch 影像辨識專題與智慧代理人實作。</p>
-                        <div class="flex items-center justify-between text-[10px] text-slate-400 pt-2 border-t border-slate-700/50">
-                            <span>參與學生: 48 人</span>
-                            <span class="text-blue-400 font-bold">查看課程模組 <i class="fa-solid fa-arrow-right ml-1"></i></span>
-                        </div>
-                    </div>
-
-                    <div class="glass-card p-3.5 rounded-2xl cursor-pointer" onclick="openChannelModal('ai-iot')">
-                        <div class="flex items-center justify-between mb-1.5">
-                            <div class="flex items-center gap-2">
-                                <i class="fa-solid fa-microchip text-emerald-400"></i>
-                                <span class="text-xs font-bold text-white">Edge AI 與物聯網應用</span>
-                            </div>
-                            <span class="text-[10px] text-blue-400 font-semibold bg-blue-950/80 px-2 py-0.5 rounded">專案展示</span>
-                        </div>
-                        <p class="text-[11px] text-slate-400 mb-2">結合 Raspberry Pi 與 Jetson Nano 之智慧感測與邊緣運算模型部署。</p>
-                        <div class="flex items-center justify-between text-[10px] text-slate-400 pt-2 border-t border-slate-700/50">
-                            <span>參與學生: 36 人</span>
-                            <span class="text-emerald-400 font-bold">查看硬體實驗室 <i class="fa-solid fa-arrow-right ml-1"></i></span>
-                        </div>
-                    </div>
-
-                    <div class="glass-card p-3.5 rounded-2xl cursor-pointer" onclick="openChannelModal('gen-ai')">
-                        <div class="flex items-center justify-between mb-1.5">
-                            <div class="flex items-center gap-2">
-                                <i class="fa-solid fa-wand-magic-sparkles text-purple-400"></i>
-                                <span class="text-xs font-bold text-white">生成式 AI 與大型語言模型</span>
-                            </div>
-                            <span class="text-[10px] text-purple-400 font-semibold bg-purple-950/80 px-2 py-0.5 rounded">熱門焦點</span>
-                        </div>
-                        <p class="text-[11px] text-slate-400 mb-2">Transformer 架構解析、提示詞工程、RAG 檢索增強生成系統。</p>
-                        <div class="flex items-center justify-between text-[10px] text-slate-400 pt-2 border-t border-slate-700/50">
-                            <span>參與學生: 62 人</span>
-                            <span class="text-purple-400 font-bold">進入LLM頻道 <i class="fa-solid fa-arrow-right ml-1"></i></span>
-                        </div>
-                    </div>
-                </div>
-
-                <div class="mt-4 pt-3 border-t border-slate-700/60 flex items-center justify-between">
-                    <a href="https://im3.nhu.edu.tw/Web/Index" target="_blank" class="text-xs text-blue-400 hover:text-blue-300 font-bold flex items-center gap-1.5">
-                        <i class="fa-solid fa-globe"></i> 南華AI系官方網站 <i class="fa-solid fa-external-link-alt text-[10px]"></i>
-                    </a>
-                    <button onclick="triggerAIChat()" class="px-3 py-1.5 rounded-xl bg-gradient-to-r from-blue-600 to-indigo-600 hover:from-blue-500 hover:to-indigo-500 text-white text-xs font-bold shadow-lg shadow-blue-500/20 transition-all flex items-center gap-1.5">
-                        <i class="fa-solid fa-robot"></i> AI助教
-                    </button>
-                </div>
-            </div>
-
-            <!-- Center Empty Space for 3D Viewport Navigation Hint -->
-            <div class="flex-1 hidden lg:flex flex-col items-center justify-center pointer-events-none">
-                <div id="interaction-hint" class="glass-panel px-4 py-2 rounded-full text-xs font-medium text-slate-300 flex items-center gap-2 shadow-xl animate-bounce">
-                    <i class="fa-solid fa-hand-pointer text-blue-400"></i>
-                    <span>拖曳滑動以旋轉模型視角 • 點擊六角島嶼探索各專業領域</span>
-                </div>
-            </div>
-
-            <!-- Right Panel: Live Activity Stream & Statistics -->
-            <div id="right-sidebar" class="w-full lg:w-80 glass-panel p-5 rounded-3xl pointer-events-auto shadow-2xl max-h-[75vh] overflow-y-auto">
-                <div class="flex items-center justify-between mb-4 pb-3 border-b border-slate-700/60">
-                    <div class="flex items-center gap-2.5">
-                        <div class="w-8 h-8 rounded-lg bg-emerald-500/20 text-emerald-400 flex items-center justify-center font-bold">
-                            <i class="fa-solid fa-wave-square"></i>
-                        </div>
-                        <div>
-                            <span class="text-[10px] uppercase font-bold text-emerald-400 tracking-wider">即時動態串流</span>
-                            <h2 class="text-base font-black text-white">系上活動與互動數據</h2>
-                        </div>
-                    </div>
-                    <span class="flex h-2.5 w-2.5 relative">
-                        <span class="animate-ping absolute inline-flex h-full w-full rounded-full bg-emerald-400 opacity-75"></span>
-                        <span class="relative inline-flex rounded-full h-2.5 w-2.5 bg-emerald-500"></span>
-                    </span>
-                </div>
-
-                <!-- Live Metrics Grid -->
-                <div class="grid grid-cols-2 gap-2.5 mb-4">
-                    <div class="glass-card p-3 rounded-2xl">
-                        <div class="text-[10px] text-slate-400 font-medium mb-1">本學期專案總數</div>
-                        <div class="text-lg font-black text-blue-400">48 項</div>
-                        <div class="text-[10px] text-emerald-400 mt-1 flex items-center gap-1">
-                            <i class="fa-solid fa-arrow-trend-up"></i> +12% 較去年
-                        </div>
-                    </div>
-                    <div class="glass-card p-3 rounded-2xl">
-                        <div class="text-[10px] text-slate-400 font-medium mb-1">產學合作企業</div>
-                        <div class="text-lg font-black text-emerald-400">24 家</div>
-                        <div class="text-[10px] text-emerald-400 mt-1 flex items-center gap-1">
-                            <i class="fa-solid fa-handshake"></i> 實習就業對接
-                        </div>
-                    </div>
-                </div>
-
-                <!-- Live Activity Feed -->
-                <div class="space-y-2.5" id="live-activity-feed">
-                    <div class="p-3 rounded-2xl bg-slate-800/40 border border-slate-700/40 flex items-start gap-3">
-                        <div class="w-7 h-7 rounded-lg bg-blue-500/20 text-blue-400 flex items-center justify-center shrink-0 mt-0.5 text-xs font-bold">
-                            <i class="fa-solid fa-code"></i>
-                        </div>
-                        <div class="flex-1 min-w-0">
-                            <div class="flex items-center justify-between">
-                                <span class="text-xs font-bold text-white truncate">AI智慧實作工作坊</span>
-                                <span class="text-[9px] text-slate-400">剛剛</span>
-                            </div>
-                            <p class="text-[11px] text-slate-300 mt-0.5">大三專題組完成 YOLOv8 即時物件辨識模型部署展示。</p>
-                        </div>
-                    </div>
-
-                    <div class="p-3 rounded-2xl bg-slate-800/40 border border-slate-700/40 flex items-start gap-3">
-                        <div class="w-7 h-7 rounded-lg bg-purple-500/20 text-purple-400 flex items-center justify-center shrink-0 mt-0.5 text-xs font-bold">
-                            <i class="fa-solid fa-award"></i>
-                        </div>
-                        <div class="flex-1 min-w-0">
-                            <div class="flex items-center justify-between">
-                                <span class="text-xs font-bold text-white truncate">全國AI競賽捷報</span>
-                                <span class="text-[9px] text-slate-400">15分鐘前</span>
-                            </div>
-                            <p class="text-[11px] text-slate-300 mt-0.5">南華AI系學生榮獲智慧醫療AI創新應用競賽金獎！</p>
-                        </div>
-                    </div>
-
-                    <div class="p-3 rounded-2xl bg-slate-800/40 border border-slate-700/40 flex items-start gap-3">
-                        <div class="w-7 h-7 rounded-lg bg-amber-500/20 text-amber-400 flex items-center justify-center shrink-0 mt-0.5 text-xs font-bold">
-                            <i class="fa-solid fa-user-graduate"></i>
-                        </div>
-                        <div class="flex-1 min-w-0">
-                            <div class="flex items-center justify-between">
-                                <span class="text-xs font-bold text-white truncate">產學專題發表會</span>
-                                <span class="text-[9px] text-slate-400">1小時前</span>
-                            </div>
-                            <p class="text-[11px] text-slate-300 mt-0.5">友達光電與精誠資訊主管蒞臨指導 AI 影像檢測專案。</p>
-                        </div>
-                    </div>
-                </div>
-
-                <div class="mt-4 pt-3 border-t border-slate-700/60 text-center">
-                    <span class="text-[10px] text-slate-400">資料來源：南華大學人工智慧應用學系官方資訊網</span>
-                </div>
+        <!-- Middle empty area so 3D islands are fully visible -->
+        <main class="flex-1 flex flex-col items-center justify-center pointer-events-none my-auto">
+            <div id="interaction-hint" class="glass-panel px-4 py-2 rounded-full text-xs font-medium text-slate-300 flex items-center gap-2 animate-bounce pointer-events-auto">
+                <i class="fa-solid fa-hand-pointer text-blue-400"></i>
+                <span>點擊任意 3D 六角島嶼查看專屬課程說明 • 拖曳旋轉視角</span>
             </div>
         </main>
 
-        <!-- Bottom Footer Controls & Legend -->
-        <footer class="flex flex-col md:flex-row items-center justify-between gap-4 pointer-events-auto">
-            <div class="glass-panel px-4 py-2.5 rounded-2xl flex items-center gap-3 text-xs text-slate-300">
-                <span class="font-bold text-white flex items-center gap-1.5"><i class="fa-solid fa-layer-group text-blue-400"></i> 模型圖例：</span>
-                <div class="flex items-center gap-3">
-                    <span class="flex items-center gap-1"><span class="w-2.5 h-2.5 rounded-sm bg-blue-500"></span>核心主島</span>
-                    <span class="flex items-center gap-1"><span class="w-2.5 h-2.5 rounded-sm bg-emerald-500"></span>視覺運算</span>
-                    <span class="flex items-center gap-1"><span class="w-2.5 h-2.5 rounded-sm bg-amber-500"></span>大數據</span>
-                    <span class="flex items-center gap-1"><span class="w-2.5 h-2.5 rounded-sm bg-rose-500"></span>物聯網</span>
-                    <span class="flex items-center gap-1"><span class="w-2.5 h-2.5 rounded-sm bg-purple-500"></span>前瞻創新</span>
+        <!-- Bottom Footer Controls -->
+        <footer class="flex items-center justify-between gap-3 pointer-events-auto">
+            <div class="glass-panel px-3 py-2 rounded-2xl flex items-center gap-2 text-xs text-slate-300">
+                <span class="font-bold text-white flex items-center gap-1"><i class="fa-solid fa-layer-group text-blue-400"></i> 群島圖例：</span>
+                <div class="hidden sm:flex items-center gap-2 text-[11px]">
+                    <span class="flex items-center gap-1"><span class="w-2 h-2 rounded-sm bg-blue-500"></span>核心</span>
+                    <span class="flex items-center gap-1"><span class="w-2 h-2 rounded-sm bg-emerald-500"></span>視覺</span>
+                    <span class="flex items-center gap-1"><span class="w-2 h-2 rounded-sm bg-amber-500"></span>大數據</span>
+                    <span class="flex items-center gap-1"><span class="w-2 h-2 rounded-sm bg-rose-500"></span>物聯網</span>
+                    <span class="flex items-center gap-1"><span class="w-2 h-2 rounded-sm bg-purple-500"></span>前瞻</span>
                 </div>
             </div>
 
-            <div class="glass-panel px-4 py-2.5 rounded-2xl flex items-center gap-3">
-                <button onclick="resetCameraView()" class="px-3 py-1.5 rounded-xl bg-slate-800 hover:bg-slate-700 text-white text-xs font-bold transition-all flex items-center gap-1.5 border border-slate-700">
+            <div class="glass-panel px-3 py-2 rounded-2xl flex items-center gap-2">
+                <button onclick="resetCameraView()" class="px-3 py-1.5 rounded-xl bg-slate-800 hover:bg-slate-700 text-white text-xs font-bold transition-all flex items-center gap-1 border border-slate-700">
                     <i class="fa-solid fa-rotate"></i> 重置視角
                 </button>
-                <button onclick="toggleAutoRotate()" id="autorotate-btn" class="px-3 py-1.5 rounded-xl bg-blue-600 hover:bg-blue-500 text-white text-xs font-bold transition-all flex items-center gap-1.5 shadow-lg shadow-blue-600/30">
-                    <i class="fa-solid fa-play"></i> 自動環視
+                <button onclick="toggleAutoRotate()" id="autorotate-btn" class="px-3 py-1.5 rounded-xl bg-blue-600 hover:bg-blue-500 text-white text-xs font-bold transition-all flex items-center gap-1 shadow-lg shadow-blue-600/30">
+                    <i class="fa-solid fa-play"></i> 環視
                 </button>
             </div>
         </footer>
@@ -355,208 +228,115 @@
 
     <!-- Course / Channel Detail Modal -->
     <div id="channel-modal" class="fixed inset-0 z-50 flex items-center justify-center p-4 bg-slate-950/80 backdrop-blur-md opacity-0 pointer-events-none transition-all duration-300">
-        <div class="glass-panel w-full max-w-lg p-6 rounded-3xl shadow-2xl transform scale-95 transition-all duration-300" id="modal-content-box">
-            <div class="flex items-center justify-between mb-4 pb-3 border-b border-slate-700">
-                <div class="flex items-center gap-3">
-                    <div id="modal-icon-bg" class="w-10 h-10 rounded-xl bg-blue-500/20 text-blue-400 flex items-center justify-center text-lg font-bold">
-                        <i id="modal-icon" class="fa-solid fa-brain"></i>
-                    </div>
-                    <div>
-                        <h3 id="modal-title" class="text-lg font-black text-white">機器學習與深度學習頻道</h3>
-                        <span id="modal-subtitle" class="text-xs text-blue-400 font-semibold">南華大學人工智慧應用學系 • 專業核心課程</span>
-                    </div>
+        <div class="glass-panel w-full max-w-lg p-6 rounded-3xl shadow-2xl relative transform scale-95 transition-all duration-300" id="channel-modal-content">
+            <button onclick="closeChannelModal()" class="absolute top-4 right-4 w-8 h-8 rounded-full bg-slate-800 text-slate-300 hover:text-white flex items-center justify-center">
+                <i class="fa-solid fa-xmark"></i>
+            </button>
+            <div class="flex items-center gap-3 mb-4">
+                <div id="modal-icon-wrap" class="w-12 h-12 rounded-2xl bg-blue-500/20 text-blue-400 flex items-center justify-center text-xl font-bold">
+                    <i id="modal-icon" class="fa-solid fa-brain"></i>
                 </div>
-                <button onclick="closeChannelModal()" class="w-8 h-8 rounded-full bg-slate-800 hover:bg-slate-700 flex items-center justify-center text-slate-300 hover:text-white transition-all">
-                    <i class="fa-solid fa-xmark"></i>
-                </button>
-            </div>
-            
-            <div class="space-y-4 mb-6">
                 <div>
-                    <h4 class="text-xs font-bold text-slate-400 uppercase tracking-wider mb-1.5">課程核心目標</h4>
-                    <p id="modal-desc" class="text-xs text-slate-200 leading-relaxed bg-slate-900/60 p-3 rounded-xl border border-slate-800">
-                        培養學生掌握現代人工智慧之核心演算法。從基礎線性迴歸、支持向量機到深度卷積神經網路(CNN)與Transformer模型，具備獨立開發AI應用系統之實戰能力。
-                    </p>
-                </div>
-
-                <div class="grid grid-cols-2 gap-3">
-                    <div class="bg-slate-900/60 p-3 rounded-xl border border-slate-800">
-                        <div class="text-[10px] text-slate-400 mb-1">授課師資與實驗室</div>
-                        <div id="modal-teacher" class="text-xs font-bold text-white">AI核心研究室 / 專任師資群</div>
-                    </div>
-                    <div class="bg-slate-900/60 p-3 rounded-xl border border-slate-800">
-                        <div class="text-[10px] text-slate-400 mb-1">即時活躍互動指數</div>
-                        <div id="modal-activity" class="text-xs font-bold text-emerald-400">98% 互動熱絡</div>
-                    </div>
-                </div>
-
-                <div>
-                    <h4 class="text-xs font-bold text-slate-400 uppercase tracking-wider mb-2">核心模組與技術棧</h4>
-                    <div id="modal-tags" class="flex flex-wrap gap-1.5">
-                        <span class="text-[11px] px-2.5 py-1 rounded-lg bg-blue-500/20 text-blue-300 border border-blue-500/30">Python</span>
-                        <span class="text-[11px] px-2.5 py-1 rounded-lg bg-blue-500/20 text-blue-300 border border-blue-500/30">PyTorch</span>
-                        <span class="text-[11px] px-2.5 py-1 rounded-lg bg-emerald-500/20 text-emerald-300 border border-emerald-500/30">Computer Vision</span>
-                        <span class="text-[11px] px-2.5 py-1 rounded-lg bg-purple-500/20 text-purple-300 border border-purple-500/30">Deep Learning</span>
-                    </div>
+                    <span id="modal-category" class="text-[10px] uppercase font-bold text-blue-400 tracking-wider">AI 專業學群</span>
+                    <h3 id="modal-title" class="text-lg font-black text-white">機器學習與深度學習</h3>
                 </div>
             </div>
-
-            <div class="flex items-center justify-end gap-3 pt-3 border-t border-slate-700">
-                <button onclick="closeChannelModal()" class="px-4 py-2 rounded-xl bg-slate-800 hover:bg-slate-700 text-white text-xs font-bold transition-all">
-                    關閉視窗
-                </button>
-                <a href="https://im3.nhu.edu.tw/Web/Index" target="_blank" class="px-4 py-2 rounded-xl bg-blue-600 hover:bg-blue-500 text-white text-xs font-bold transition-all shadow-lg shadow-blue-600/30 flex items-center gap-1.5">
-                    進入南華AI系課程網 <i class="fa-solid fa-arrow-right"></i>
+            <p id="modal-desc" class="text-xs text-slate-300 leading-relaxed mb-4">
+                本課程群組著重於人工智慧核心演算法、神經網路架構設計與真實世界資料集之模型訓練。
+            </p>
+            <div class="space-y-2 mb-6" id="modal-channels-list">
+                <!-- Detailed channels -->
+            </div>
+            <div class="flex justify-end gap-2">
+                <button onclick="closeChannelModal()" class="px-4 py-2 rounded-xl bg-slate-800 text-slate-300 hover:text-white text-xs font-bold">關閉</button>
+                <a href="https://im3.nhu.edu.tw/Web/Index" target="_blank" class="px-4 py-2 rounded-xl bg-blue-600 hover:bg-blue-500 text-white text-xs font-bold shadow-lg shadow-blue-600/30 flex items-center gap-1.5">
+                    <span>前往南華AI系官網</span> <i class="fa-solid fa-external-link-alt text-[10px]"></i>
                 </a>
-            </div>
-        </div>
-    </div>
-
-    <!-- AI Assistant Modal -->
-    <div id="ai-chat-modal" class="fixed inset-0 z-50 flex items-center justify-center p-4 bg-slate-950/80 backdrop-blur-md opacity-0 pointer-events-none transition-all duration-300">
-        <div class="glass-panel w-full max-w-md p-5 rounded-3xl shadow-2xl transform scale-95 transition-all duration-300" id="ai-chat-box">
-            <div class="flex items-center justify-between mb-4 pb-3 border-b border-slate-700">
-                <div class="flex items-center gap-2.5">
-                    <div class="w-8 h-8 rounded-xl bg-gradient-to-tr from-blue-600 to-indigo-600 text-white flex items-center justify-center font-bold">
-                        <i class="fa-solid fa-robot"></i>
-                    </div>
-                    <div>
-                        <h3 class="text-sm font-black text-white">南華 AI 系智慧導覽助教</h3>
-                        <span class="text-[10px] text-emerald-400 font-semibold flex items-center gap-1"><span class="w-1.5 h-1.5 rounded-full bg-emerald-400"></span> 線上運作中</span>
-                    </div>
-                </div>
-                <button onclick="closeAIChat()" class="w-7 h-7 rounded-full bg-slate-800 hover:bg-slate-700 flex items-center justify-center text-slate-300 hover:text-white transition-all">
-                    <i class="fa-solid fa-xmark text-xs"></i>
-                </button>
-            </div>
-
-            <div class="h-64 overflow-y-auto space-y-3 p-2 bg-slate-950/40 rounded-2xl border border-slate-800/80 mb-3 text-xs" id="chat-messages">
-                <div class="flex items-start gap-2">
-                    <div class="w-6 h-6 rounded-lg bg-blue-600 text-white flex items-center justify-center shrink-0 text-[10px] font-bold">AI</div>
-                    <div class="bg-slate-800 p-2.5 rounded-2xl rounded-tl-none text-slate-200 max-w-[85%]">
-                        你好！我是南華大學人工智慧應用學系的小助手。請問你想了解哪一個島嶼群組或課程頻道呢？
-                    </div>
-                </div>
-            </div>
-
-            <div class="flex items-center gap-2">
-                <input type="text" id="chat-input" placeholder="輸入你想問的問題（例：系上有哪些AI實驗室？）" class="flex-1 bg-slate-900 border border-slate-700 rounded-xl px-3 py-2 text-xs text-white focus:outline-none focus:border-blue-500">
-                <button onclick="sendChatMessage()" class="px-3.5 py-2 rounded-xl bg-blue-600 hover:bg-blue-500 text-white text-xs font-bold transition-all shadow-md shadow-blue-600/30">
-                    <i class="fa-solid fa-paper-plane"></i>
-                </button>
             </div>
         </div>
     </div>
 
     <!-- Three.js 3D Miniature Model Archipelago Script -->
     <script>
-        let scene, camera, renderer;
-        let islands = [];
-        let raycaster = new THREE.Raycaster();
-        let mouse = new THREE.Vector2();
-        let isAutoRotate = true;
-        let targetedIsland = null;
-        let animationFrameId;
-
-        // Island Data corresponding to NHU AI Dept
         const islandData = [
             {
                 id: 'core',
-                name: '南華 AI 核心主島',
-                category: '核心AI主島',
-                icon: 'fa-graduation-cap',
-                color: 0x3b82f6,
+                name: '南華 AI 核心學群',
+                desc: '人工智慧應用學系主基石，涵蓋高等數學、線性代數、演算法與智慧系統架構基礎。',
+                icon: 'fa-brain',
                 accentColor: '#3b82f6',
-                pos: { x: 0, y: 0, z: 0 },
-                scale: 1.2,
-                desc: '南華大學人工智慧應用學系主大樓與核心行政中心，匯聚基礎AI學理、演算法與跨領域智慧應用教學。',
+                position: { x: 0, z: 0 },
                 channels: [
-                    { name: '機器學習與深度學習', desc: '神經網路模型、PyTorch 影像辨識與智慧代理人', students: 48, status: '進行中' },
-                    { name: 'AI 程式設計實作', desc: 'Python 核心語法、演算法優化與資料結構', students: 54, status: '熱門' },
-                    { name: 'AI 倫理與法律規範', desc: '人工智慧倫理道德、資料隱私與合規治理', students: 40, status: '常態' }
-                ],
-                tags: ['Python', 'Deep Learning', 'AI Ethics', 'Core Curricula']
+                    { name: '機器學習與深度學習頻道', status: '進行中', desc: '神經網路模型訓練、PyTorch 影像辨識專題與智慧代理人實作。', students: 48 },
+                    { name: '智慧型代理人與大模型應用', status: '熱門', desc: 'LLM 提示工程、RAG 檢索增強生成與自適應 AI 系統。', students: 52 }
+                ]
             },
             {
                 id: 'vision',
-                name: '視覺智慧島',
-                category: '視覺智慧島',
+                name: '電腦視覺與影像辨識島',
+                desc: '結合先進鏡頭與深度卷積網路，讓機器學會看見與理解真實世界。',
                 icon: 'fa-eye',
-                color: 0x10b981,
                 accentColor: '#10b981',
-                pos: { x: -5, y: 0.5, z: -3 },
-                scale: 1.0,
-                desc: '專注於電腦視覺、影像處理、物件偵測與擴增實境(AR)互動技術之研究發展。',
+                position: { x: 5.5, z: -3.2 },
                 channels: [
-                    { name: '電腦視覺與影像辨識', desc: 'YOLOv8 物件偵測、姿態估測與圖像生成', students: 42, status: '實驗中' },
-                    { name: '擴增實境與元宇宙應用', desc: 'Unity 3D、XR 互動開發與虛擬實境建模', students: 35, status: '專題發表' }
-                ],
-                tags: ['Computer Vision', 'YOLO', 'Unity 3D', 'XR Interaction']
+                    { name: '電腦視覺與影像處理', status: '進行中', desc: 'OpenCV 影像特徵擷取、YOLOv8 物件偵測與即時追蹤。', students: 41 },
+                    { name: '醫療影像智慧辨識', status: '專案展示', desc: 'X光與MRI斷層掃描之AI輔助診斷模型研發。', students: 29 }
+                ]
             },
             {
                 id: 'data',
-                name: '大數據運算島',
-                category: '大數據運算島',
+                name: '大數據與雲端運算島',
+                desc: '海量資料探勘、分散式雲端架構與智慧商業預測模型。',
                 icon: 'fa-database',
-                color: 0xf59e0b,
                 accentColor: '#f59e0b',
-                pos: { x: 5, y: 0.3, z: -2 },
-                scale: 1.0,
-                desc: '巨量資料探勘、雲端分散式運算與商業智慧數據分析的資料科學重鎮。',
+                position: { x: -5.5, z: -3.2 },
                 channels: [
-                    { name: '巨量資料分析與探勘', desc: 'Hadoop、Spark 分散式運算與大數據視覺化', students: 38, status: '運作中' },
-                    { name: '商業智慧與預測模型', desc: '時序預測、顧客行為分析與決策支援系統', students: 31, status: '熱門專案' }
-                ],
-                tags: ['Big Data', 'Cloud Computing', 'Data Mining', 'Business Intelligence']
+                    { name: '大數據分析與探勘', status: '進行中', desc: 'Hadoop/Spark 分散式運算與消費者行為預測。', students: 38 },
+                    { name: '雲端資料庫與系統維運', status: '實作中', desc: 'NoSQL 資料庫設計與 Docker 容器化微服務部署。', students: 34 }
+                ]
             },
             {
                 id: 'smart',
-                name: '智慧物聯網島',
-                category: '智慧物聯網島',
+                name: 'Edge AI 與物聯網島',
+                desc: '將AI演算法植入嵌入式晶片，實現智慧家居、無人車與智慧農業。',
                 icon: 'fa-microchip',
-                color: 0xf43f5e,
                 accentColor: '#f43f5e',
-                pos: { x: -3, y: -0.2, z: 4 },
-                scale: 1.0,
-                desc: '結合硬體感測器與 Edge AI 邊緣運算，打造智慧校園、智慧農業與智慧工廠應用。',
+                position: { x: 5.5, z: 3.2 },
                 channels: [
-                    { name: 'Edge AI 與物聯網實作', desc: 'Raspberry Pi、Jetson Nano 與感測器聯網', students: 36, status: '實作中' },
-                    { name: '智慧感測與嵌入式系統', desc: 'IoT 通訊協定 (MQTT)、微控制器程式設計', students: 29, status: '實驗室專案' }
-                ],
-                tags: ['Edge AI', 'IoT', 'Jetson Nano', 'Sensor Networks']
+                    { name: 'Edge AI 與物聯網應用', status: '專案展示', desc: 'Raspberry Pi 與 Jetson Nano 之智慧感測邊緣運算。', students: 36 },
+                    { name: '智慧機器人控制實習', status: '競賽中', desc: 'AGV 自走車避障導航與ROS機器人作業系統。', students: 30 }
+                ]
             },
             {
                 id: 'future',
-                name: '前瞻創新島',
-                category: '前瞻創新島',
-                icon: 'fa-wand-magic-sparkles',
-                color: 0x8b5cf6,
+                name: '前瞻AI與創新實驗島',
+                desc: '探索生成式AI、元宇宙互動、人機介面與跨領域創新應用。',
+                icon: 'fa-rocket',
                 accentColor: '#8b5cf6',
-                pos: { x: 4, y: 0.6, z: 4 },
-                scale: 1.0,
-                desc: '探索生成式 AI (Generative AI)、大型語言模型 (LLM) 與前瞻科技應用的實驗性創新基地。',
+                position: { x: -5.5, z: 3.2 },
                 channels: [
-                    { name: '生成式 AI 與大型語言模型', desc: 'Transformer 架構、提示詞工程與 RAG 應用', students: 62, status: '熱門焦點' },
-                    { name: '產學專題與創業孵化', desc: '與友達、精誠等知名企業產學合作專案開發', students: 45, status: '產學對接' }
-                ],
-                tags: ['GenAI', 'LLM', 'RAG', 'Industry Collaboration']
+                    { name: '生成式AI與數位藝術', status: '熱門', desc: 'Diffusion 擴散模型生成與互動式多媒體創作。', students: 45 },
+                    { name: '產學專題實作與創業育成', status: '結案展演', desc: '與各大科技企業合作之 AI 商業解決方案提案。', students: 50 }
+                ]
             }
         ];
+
+        let scene, camera, renderer, raycaster, mouse;
+        let islands = [];
+        let isAutoRotate = false;
+        let currentSelectedIsland = null;
 
         function init3D() {
             const container = document.getElementById('canvas-container');
             
-            // Scene Setup
             scene = new THREE.Scene();
-            scene.background = new THREE.Color(0x0f172a);
-            scene.fog = new THREE.FogExp2(0x0f172a, 0.035);
+            scene.background = new THREE.Color(0x0b1120);
+            scene.fog = new THREE.FogExp2(0x0b1120, 0.035);
 
-            // Camera Setup
             camera = new THREE.PerspectiveCamera(45, window.innerWidth / window.innerHeight, 0.1, 1000);
-            camera.position.set(0, 18, 22);
+            camera.position.set(0, 14, 16);
             camera.lookAt(0, 0, 0);
 
-            // Renderer Setup
             renderer = new THREE.WebGLRenderer({ antialias: true, alpha: true });
             renderer.setSize(window.innerWidth, window.innerHeight);
             renderer.setPixelRatio(Math.min(window.devicePixelRatio, 2));
@@ -564,64 +344,51 @@
             renderer.shadowMap.type = THREE.PCFSoftShadowMap;
             container.appendChild(renderer.domElement);
 
-            // Lighting for Tilt-Shift Toy Model Look
+            raycaster = new THREE.Raycaster();
+            mouse = new THREE.Vector2();
+
             const ambientLight = new THREE.AmbientLight(0xffffff, 0.7);
             scene.add(ambientLight);
 
-            const directionalLight = new THREE.DirectionalLight(0xfffbeb, 1.2);
-            directionalLight.position.set(15, 25, 15);
-            directionalLight.castShadow = true;
-            directionalLight.shadow.mapSize.width = 2048;
-            directionalLight.shadow.mapSize.height = 2048;
-            directionalLight.shadow.camera.near = 0.5;
-            directionalLight.shadow.camera.far = 50;
-            const d = 15;
-            directionalLight.shadow.camera.left = -d;
-            directionalLight.shadow.camera.right = d;
-            directionalLight.shadow.camera.top = d;
-            directionalLight.shadow.camera.bottom = -d;
-            scene.add(directionalLight);
+            const sunLight = new THREE.DirectionalLight(0xfffbeb, 1.2);
+            sunLight.position.set(15, 25, 15);
+            sunLight.castShadow = true;
+            sunLight.shadow.mapSize.width = 2048;
+            sunLight.shadow.mapSize.height = 2048;
+            scene.add(sunLight);
 
-            const hemiLight = new THREE.HemisphereLight(0x3b82f6, 0x10b981, 0.5);
-            hemiLight.position.set(0, 20, 0);
-            scene.add(hemiLight);
+            const blueFill = new THREE.DirectionalLight(0x3b82f6, 0.5);
+            blueFill.position.set(-15, 10, -15);
+            scene.add(blueFill);
 
-            // Create Hexagonal Islands (Miniature Model Style)
-            islandData.forEach((data, index) => {
+            const waterGeo = new THREE.PlaneGeometry(100, 100);
+            const waterMat = new THREE.MeshStandardMaterial({
+                color: 0x1e293b,
+                roughness: 0.2,
+                metalness: 0.8
+            });
+            const water = new THREE.Mesh(waterGeo, waterMat);
+            water.rotation.x = -Math.PI / 2;
+            water.position.y = -0.8;
+            scene.add(water);
+
+            islandData.forEach((data) => {
                 const islandGroup = createHexIsland(data);
-                islandGroup.position.set(data.pos.x, data.pos.y, data.pos.z);
+                islandGroup.position.set(data.position.x, 0, data.position.z);
                 islandGroup.userData = data;
                 scene.add(islandGroup);
                 islands.push(islandGroup);
             });
 
-            // Add Decorative Miniature Water plane below
-            const waterGeometry = new THREE.PlaneGeometry(60, 60);
-            const waterMaterial = new THREE.MeshStandardMaterial({
-                color: 0x1e293b,
-                roughness: 0.1,
-                metalness: 0.8,
-                transparent: true,
-                opacity: 0.6
-            });
-            const water = new THREE.Mesh(waterGeometry, waterMaterial);
-            water.rotation.x = -Math.PI / 2;
-            water.position.y = -1.2;
-            scene.add(water);
-
-            // Event Listeners for Interaction
             window.addEventListener('resize', onWindowResize);
-            window.addEventListener('pointermove', onPointerMove);
-            window.addEventListener('click', onClick);
 
-            // Mouse Drag to Rotate Camera
             let isDragging = false;
             let previousMousePosition = { x: 0, y: 0 };
+            let hasMoved = false;
 
             container.addEventListener('pointerdown', (e) => {
                 isDragging = true;
-                isAutoRotate = false;
-                document.getElementById('autorotate-btn').innerHTML = '<i class="fa-solid fa-play"></i> 自動環視';
+                hasMoved = false;
                 previousMousePosition = { x: e.clientX, y: e.clientY };
             });
 
@@ -629,28 +396,28 @@
                 if (!isDragging) return;
                 const deltaX = e.clientX - previousMousePosition.x;
                 const deltaY = e.clientY - previousMousePosition.y;
-
+                if (Math.abs(deltaX) > 2 || Math.abs(deltaY) > 2) {
+                    hasMoved = true;
+                }
                 scene.rotation.y += deltaX * 0.005;
-
                 previousMousePosition = { x: e.clientX, y: e.clientY };
             });
 
-            window.addEventListener('pointerup', () => {
+            container.addEventListener('pointerup', (e) => {
                 isDragging = false;
+                if (!hasMoved) {
+                    handleCanvasClick(e);
+                }
             });
 
-            // Start Animation Loop
             animate();
         }
 
-        // Create Hexagonal Island Geometry & Miniature Buildings
-        ModelCache = {};
         function createHexIsland(data) {
             const group = new THREE.Group();
+            const radius = 3.2;
+            const height = 1.2;
 
-            // Hexagonal Base
-            const radius = 3.2 * data.scale;
-            const height = 0.8;
             const hexShape = new THREE.Shape();
             for (let i = 0; i < 6; i++) {
                 const angle = (i * Math.PI) / 3;
@@ -659,7 +426,6 @@
                 if (i === 0) hexShape.moveTo(x, y);
                 else hexShape.lineTo(x, y);
             }
-            hexShape.closePath();
 
             const extrudeSettings = {
                 depth: height,
@@ -673,80 +439,54 @@
             const geom = new THREE.ExtrudeGeometry(hexShape, extrudeSettings);
             geom.rotateX(Math.PI / 2);
 
-            // Toy Model Island Material (Clean matte clay/plastic look)
+            const baseColor = data.id === 'core' ? 0x2563eb : 
+                              data.id === 'vision' ? 0x059669 : 
+                              data.id === 'data' ? 0xd97706 : 
+                              data.id === 'smart' ? 0xe11d48 : 0x7c3aed;
+
             const mat = new THREE.MeshStandardMaterial({
-                color: data.color,
-                roughness: 0.3,
-                metalness: 0.1,
-                flatShading: true
+                color: baseColor,
+                roughness: 0.4,
+                metalness: 0.1
             });
 
             const mesh = new THREE.Mesh(geom, mat);
+            mesh.position.y = -height;
             mesh.castShadow = true;
             mesh.receiveShadow = true;
             group.add(mesh);
 
-            // Grass/Ground top layer
-            const topGeo = new THREE.CircleGeometry(radius * 0.92, 6);
-            const topMat = new THREE.MeshStandardMaterial({
-                color: 0x334155,
-                roughness: 0.8,
-                flatShading: true
-            });
+            const topGeo = new THREE.CylinderGeometry(radius * 0.95, radius * 0.95, 0.1, 6);
+            const topMat = new THREE.MeshStandardMaterial({ color: 0x334155, roughness: 0.8 });
             const topMesh = new THREE.Mesh(topGeo, topMat);
-            topMesh.rotation.x = -Math.PI / 2;
-            topMesh.position.y = height + 0.02;
+            topMesh.position.y = 0.05;
             topMesh.receiveShadow = true;
             group.add(topMesh);
 
-            // Miniature Buildings (Toy Model City Blocks)
-            const buildingCount = data.id === 'core' ? 5 : 3;
-            for (let i = 0; i < buildingCount; i++) {
+            const buildingMat = new THREE.MeshStandardMaterial({ color: 0xf8fafc, roughness: 0.3, metalness: 0.2 });
+            const accentMat = new THREE.MeshStandardMaterial({ color: baseColor, roughness: 0.2 });
+
+            for (let i = 0; i < 3; i++) {
                 const bWidth = 0.6 + Math.random() * 0.6;
-                const bHeight = 1.0 + Math.random() * 2.2;
+                const bHeight = 1.0 + Math.random() * 1.5;
                 const bDepth = 0.6 + Math.random() * 0.6;
-
-                const bGeo = new THREE.BoxGeometry(bWidth, bHeight, bDepth);
-                const bMat = new THREE.MeshStandardMaterial({
-                    color: i === 0 ? 0xffffff : (Math.random() > 0.5 ? 0x94a3b8 : 0x64748b),
-                    roughness: 0.2,
-                    metalness: 0.3,
-                    flatShading: true
-                });
-
-                const bMesh = new THREE.Mesh(bGeo, bMat);
+                const bGeom = new THREE.BoxGeometry(bWidth, bHeight, bDepth);
+                const bMesh = new THREE.Mesh(bGeom, i === 0 ? accentMat : buildingMat);
                 
-                const angle = (i / buildingCount) * Math.PI * 2;
-                const dist = 1.2 + Math.random() * 0.8;
-                bMesh.position.set(
-                    Math.cos(angle) * dist,
-                    height + bHeight / 2,
-                    Math.sin(angle) * dist
-                );
-
+                const angle = (i / 3) * Math.PI * 2 + 0.5;
+                const dist = 1.0;
+                bMesh.position.set(Math.cos(angle) * dist, bHeight / 2, Math.sin(angle) * dist);
                 bMesh.castShadow = true;
                 bMesh.receiveShadow = true;
                 group.add(bMesh);
-
-                // Add glowing beacon / window lights on top
-                const beaconGeo = new THREE.SphereGeometry(0.12, 8, 8);
-                const beaconMat = new THREE.MeshBasicMaterial({ color: data.color });
-                const beacon = new THREE.Mesh(beaconGeo, beaconMat);
-                beacon.position.set(bMesh.position.x, height + bHeight + 0.1, bMesh.position.z);
-                group.add(beacon);
             }
 
-            // Floating Holographic Tag Indicator above island
-            const ringGeo = new THREE.RingGeometry(radius * 0.9, radius * 1.0, 6);
-            const ringMat = new THREE.MeshBasicMaterial({
-                color: data.color,
-                side: THREE.DoubleSide,
-                transparent: true,
-                opacity: 0.7
-            });
+            const ringGeo = new THREE.RingGeometry(0.8, 1.0, 16);
+            const ringMat = new THREE.MeshBasicMaterial({ color: baseColor, side: THREE.DoubleSide, transparent: true, opacity: 0.8 });
             const ring = new THREE.Mesh(ringGeo, ringMat);
             ring.rotation.x = -Math.PI / 2;
-            ring.position.y = height + 0.05;
+            ring.position.y = 2.8;
+            ring.name = 'ring';
             group.add(ring);
 
             return group;
@@ -758,211 +498,192 @@
             renderer.setSize(window.innerWidth, window.innerHeight);
         }
 
-        function onPointerMove(event) {
-            mouse.x = (event.clientX / window.innerWidth) * 2 - 1;
-            mouse.y = -(event.clientY / window.innerHeight) * 2 + 1;
-        }
-
-        function onClick(event) {
-            // Ignore clicks if clicking on UI panels
-            if (event.clientY > window.innerHeight - 150 && event.clientX < 400) return;
+        function handleCanvasClick(e) {
+            mouse.x = (e.clientX / window.innerWidth) * 2 - 1;
+            mouse.y = -(e.clientY / window.innerHeight) * 2 + 1;
 
             raycaster.setFromCamera(mouse, camera);
-            const intersects = raycaster.intersectObjects(scene.children, true);
+            const intersects = raycaster.intersectObjects(islands, true);
 
             if (intersects.length > 0) {
                 let obj = intersects[0].object;
                 while (obj.parent && !obj.userData.id) {
                     obj = obj.parent;
                 }
-
-                if (obj.userData && obj.userData.id) {
-                    selectIsland(obj.userData);
+                if (obj.userData.id) {
+                    currentSelectedIsland = obj.userData;
+                    showIslandTooltip(obj, currentSelectedIsland);
                     
-                    // Smoothly animate camera to target island
                     gsap.to(camera.position, {
-                        x: obj.position.x + 2,
-                        y: obj.position.y + 6,
-                        z: obj.position.z + 8,
-                        duration: 1.5,
-                        ease: "power2.out",
-                        onUpdate: () => camera.lookAt(obj.position.x, obj.position.y, obj.position.z)
+                        x: obj.position.x * 1.2,
+                        y: 11,
+                        z: obj.position.z + 13,
+                        duration: 1.0,
+                        ease: 'power2.out',
+                        onUpdate: () => camera.lookAt(obj.position.x, 0, obj.position.z)
                     });
-                    isAutoRotate = false;
-                    document.getElementById('autorotate-btn').innerHTML = '<i class="fa-solid fa-play"></i> 自動環視';
                 }
+            } else {
+                closeTooltip();
             }
         }
 
-        function selectIsland(data) {
-            // Update Left Sidebar Content
-            document.getElementById('sidebar-title').textContent = data.name;
-            document.getElementById('sidebar-desc').textContent = data.desc;
-            document.getElementById('sidebar-icon').className = `fa-solid ${data.icon}`;
-            document.getElementById('sidebar-icon-wrap').style.color = data.accentColor;
-            document.getElementById('sidebar-icon-wrap').style.background = `${data.accentColor}20`;
+        function showIslandTooltip(islandMesh, data) {
+            const tooltip = document.getElementById('island-tooltip');
+            
+            document.getElementById('tooltip-title').textContent = data.name;
+            document.getElementById('tooltip-desc').textContent = data.desc;
+            document.getElementById('tooltip-icon').className = `fa-solid ${data.icon}`;
+            document.getElementById('tooltip-icon-wrap').style.color = data.accentColor;
+            document.getElementById('tooltip-icon-wrap').style.background = `${data.accentColor}20`;
 
-            const channelsContainer = document.getElementById('sidebar-channels');
+            const channelsContainer = document.getElementById('tooltip-channels');
             channelsContainer.innerHTML = '';
-
             data.channels.forEach(ch => {
                 channelsContainer.innerHTML += `
-                    <div class="glass-card p-3.5 rounded-2xl cursor-pointer" onclick="openChannelModal('${data.id}')">
-                        <div class="flex items-center justify-between mb-1.5">
-                            <div class="flex items-center gap-2">
-                                <i class="fa-solid ${data.icon}" style="color: ${data.accentColor}"></i>
-                                <span class="text-xs font-bold text-white">${ch.name}</span>
-                            </div>
-                            <span class="text-[10px] font-semibold px-2 py-0.5 rounded" style="color: ${data.accentColor}; background: ${data.accentColor}20">${ch.status}</span>
+                    <div class="p-2 rounded-xl bg-slate-800/60 border border-slate-700/50 text-[11px]">
+                        <div class="flex items-center justify-between font-bold text-white mb-0.5">
+                            <span>${ch.name}</span>
+                            <span class="text-[9px] px-1.5 py-0.2 rounded" style="color: ${data.accentColor}; background: ${data.accentColor}20">${ch.status}</span>
                         </div>
-                        <p class="text-[11px] text-slate-400 mb-2">${ch.desc}</p>
-                        <div class="flex items-center justify-between text-[10px] text-slate-400 pt-2 border-t border-slate-700/50">
-                            <span>參與學生: ${ch.students} 人</span>
-                            <span class="font-bold" style="color: ${data.accentColor}">查看課程模組 <i class="fa-solid fa-arrow-right ml-1"></i></span>
-                        </div>
+                        <p class="text-slate-400 text-[10px] truncate">${ch.desc}</p>
                     </div>
                 `;
             });
 
-            // Highlight active button if applicable
-            islands.forEach(island => {
-                if (island.userData.id === data.id) {
-                    gsap.to(island.scale, { x: 1.2, y: 1.2, z: 1.2, duration: 0.5 });
-                } else {
-                    gsap.to(island.scale, { x: 1.0, y: 1.0, z: 1.0, duration: 0.5 });
-                }
-            });
+            tooltip.classList.add('active');
+            updateTooltipPosition(islandMesh);
         }
 
-        function focusIsland(islandId) {
-            if (islandId === 'all') {
-                resetCameraView();
-                selectIsland(islandData[0]);
-                return;
-            }
+        function updateTooltipPosition(mesh) {
+            if (!currentSelectedIsland) return;
+            const islandObj = islands.find(i => i.userData.id === currentSelectedIsland.id);
+            if (!islandObj) return;
 
-            const target = islandData.find(i => i.id === islandId);
-            if (target) {
-                selectIsland(target);
-                const islandObj = islands.find(i => i.userData.id === islandId);
-                if (islandObj) {
-                    isAutoRotate = false;
-                    document.getElementById('autorotate-btn').innerHTML = '<i class="fa-solid fa-play"></i> 自動環視';
-                    gsap.to(camera.position, {
-                        x: islandObj.position.x + 2,
-                        y: islandObj.position.y + 6,
-                        z: islandObj.position.z + 8,
-                        duration: 1.5,
-                        ease: "power2.out",
-                        onUpdate: () => camera.lookAt(islandObj.position.x, islandObj.position.y, islandObj.position.z)
-                    });
+            const vector = new THREE.Vector3(islandObj.position.x, 2.5, islandObj.position.z);
+            vector.project(camera);
+
+            const x = (vector.x *  .5 + .5) * window.innerWidth;
+            const y = (vector.y * -.5 + .5) * window.innerHeight;
+
+            const tooltip = document.getElementById('island-tooltip');
+            tooltip.style.left = `${x}px`;
+            tooltip.style.top = `${y}px`;
+        }
+
+        function closeTooltip() {
+            const tooltip = document.getElementById('island-tooltip');
+            tooltip.classList.remove('active');
+            currentSelectedIsland = null;
+        }
+
+        function focusIslandCategory(categoryId) {
+            if (categoryId === 'all') {
+                resetCameraView();
+                closeTooltip();
+            } else {
+                const found = islandData.find(i => i.id === categoryId);
+                if (found) {
+                    const islandObj = islands.find(i => i.userData.id === categoryId);
+                    if (islandObj) {
+                        currentSelectedIsland = found;
+                        showIslandTooltip(islandObj, found);
+                        gsap.to(camera.position, {
+                            x: islandObj.position.x * 1.2,
+                            y: 11,
+                            z: islandObj.position.z + 13,
+                            duration: 1.2,
+                            ease: 'power2.out',
+                            onUpdate: () => {
+                                camera.lookAt(islandObj.position.x, 0, islandObj.position.z);
+                                updateTooltipPosition(islandObj);
+                            }
+                        });
+                    }
                 }
             }
         }
 
         function resetCameraView() {
-            isAutoRotate = true;
-            document.getElementById('autorotate-btn').innerHTML = '<i class="fa-solid fa-pause"></i> 暫停環視';
-            gsap.to(camera.position, {
-                x: 0,
-                y: 18,
-                z: 22,
-                duration: 1.8,
-                ease: "power2.out",
-                onUpdate: () => camera.lookAt(0, 0, 0)
-            });
-            selectIsland(islandData[0]);
+            gsap.to(camera.position, { x: 0, y: 14, z: 16, duration: 1.2, ease: 'power2.out', onUpdate: () => camera.lookAt(0, 0, 0) });
+            scene.rotation.y = 0;
+            closeTooltip();
         }
 
         function toggleAutoRotate() {
             isAutoRotate = !isAutoRotate;
             const btn = document.getElementById('autorotate-btn');
             if (isAutoRotate) {
-                btn.innerHTML = '<i class="fa-solid fa-pause"></i> 暫停環視';
+                btn.innerHTML = '<i class="fa-solid fa-pause"></i> 停止';
+                btn.className = 'px-3 py-1.5 rounded-xl bg-emerald-600 hover:bg-emerald-500 text-white text-xs font-bold transition-all flex items-center gap-1 shadow-lg shadow-emerald-600/30';
             } else {
-                btn.innerHTML = '<i class="fa-solid fa-play"></i> 自動環視';
+                btn.innerHTML = '<i class="fa-solid fa-play"></i> 環視';
+                btn.className = 'px-3 py-1.5 rounded-xl bg-blue-600 hover:bg-blue-500 text-white text-xs font-bold transition-all flex items-center gap-1 shadow-lg shadow-blue-600/30';
             }
         }
 
-        function animate() {
-            animationFrameId = requestAnimationFrame(animate);
+        function openChannelModalFromTooltip() {
+            if (!currentSelectedIsland) return;
+            const data = currentSelectedIsland;
+            document.getElementById('modal-title').textContent = data.name;
+            document.getElementById('modal-desc').textContent = data.desc;
+            document.getElementById('modal-icon').className = `fa-solid ${data.icon}`;
+            document.getElementById('modal-icon-wrap').style.color = data.accentColor;
+            document.getElementById('modal-icon-wrap').style.background = `${data.accentColor}20`;
 
-            if (isAutoRotate) {
-                scene.rotation.y += 0.002;
-            }
-
-            // Gentle floating animation for islands
-            islands.forEach((island, idx) => {
-                island.position.y = islandData[idx].pos.y + Math.sin(Date.now() * 0.0015 + idx) * 0.15;
+            const list = document.getElementById('modal-channels-list');
+            list.innerHTML = '';
+            data.channels.forEach(ch => {
+                list.innerHTML += `
+                    <div class="p-3 rounded-2xl bg-slate-800/60 border border-slate-700/50 text-xs">
+                        <div class="flex items-center justify-between font-bold text-white mb-1">
+                            <span>${ch.name}</span>
+                            <span class="text-[10px] px-2 py-0.5 rounded" style="color: ${data.accentColor}; background: ${data.accentColor}20">${ch.status}</span>
+                        </div>
+                        <p class="text-slate-300 text-[11px] mb-1.5">${ch.desc}</p>
+                        <div class="text-[10px] text-slate-400">參與學生: ${ch.students} 人</div>
+                    </div>
+                `;
             });
 
-            renderer.render(scene, camera);
-        }
-
-        // Modal Controls
-        function openChannelModal(channelId) {
             const modal = document.getElementById('channel-modal');
-            const box = document.getElementById('modal-content-box');
             modal.classList.remove('opacity-0', 'pointer-events-none');
-            box.classList.remove('scale-95');
-            box.classList.add('scale-100');
+            modal.querySelector('.transform').classList.remove('scale-95');
+            modal.querySelector('.transform').classList.add('scale-100');
         }
 
         function closeChannelModal() {
             const modal = document.getElementById('channel-modal');
-            const box = document.getElementById('modal-content-box');
             modal.classList.add('opacity-0', 'pointer-events-none');
-            box.classList.remove('scale-100');
-            box.classList.add('scale-95');
+            modal.querySelector('.transform').classList.add('scale-95');
+            modal.querySelector('.transform').classList.remove('scale-100');
         }
 
-        function triggerAIChat() {
-            const modal = document.getElementById('ai-chat-modal');
-            const box = document.getElementById('ai-chat-box');
-            modal.classList.remove('opacity-0', 'pointer-events-none');
-            box.classList.remove('scale-95');
-            box.classList.add('scale-100');
+        function animate() {
+            requestAnimationFrame(animate);
+
+            if (isAutoRotate) {
+                scene.rotation.y += 0.003;
+            }
+
+            islands.forEach((island, i) => {
+                const ring = island.getObjectByName('ring');
+                if (ring) {
+                    ring.rotation.z += 0.01;
+                    ring.position.y = 2.8 + Math.sin(Date.now() * 0.003 + i) * 0.15;
+                }
+            });
+
+            if (currentSelectedIsland) {
+                const islandObj = islands.find(i => i.userData.id === currentSelectedIsland.id);
+                if (islandObj) {
+                    updateTooltipPosition(islandObj);
+                }
+            }
+
+            renderer.render(scene, camera);
         }
 
-        function closeAIChat() {
-            const modal = document.getElementById('ai-chat-modal');
-            const box = document.getElementById('ai-chat-box');
-            modal.classList.add('opacity-0', 'pointer-events-none');
-            box.classList.remove('scale-100');
-            box.classList.add('scale-95');
-        }
-
-        function sendChatMessage() {
-            const input = document.getElementById('chat-input');
-            const text = input.value.trim();
-            if (!text) return;
-
-            const chatMessages = document.getElementById('chat-messages');
-            chatMessages.innerHTML += `
-                <div class="flex items-start justify-end gap-2">
-                    <div class="bg-blue-600 text-white p-2.5 rounded-2xl rounded-tr-none max-w-[85%]">
-                        ${text}
-                    </div>
-                    <div class="w-6 h-6 rounded-lg bg-slate-700 text-white flex items-center justify-center shrink-0 text-[10px] font-bold">你</div>
-                </div>
-            `;
-            input.value = '';
-            chatMessages.scrollTop = chatMessages.scrollHeight;
-
-            setTimeout(() => {
-                chatMessages.innerHTML += `
-                    <div class="flex items-start gap-2">
-                        <div class="w-6 h-6 rounded-lg bg-blue-600 text-white flex items-center justify-center shrink-0 text-[10px] font-bold">AI</div>
-                        <div class="bg-slate-800 p-2.5 rounded-2xl rounded-tl-none text-slate-200 max-w-[85%]">
-                            收到！南華大學AI系結合了深度學習、Edge AI與生成式AI等前瞻技術。您可以點擊畫面上的六角島嶼來查看各領域的即時專案與課程頻道喔！
-                        </div>
-                    </div>
-                `;
-                chatMessages.scrollTop = chatMessages.scrollHeight;
-            }, 800);
-        }
-
-        // Initialize on load
         window.onload = function() {
             init3D();
         };
